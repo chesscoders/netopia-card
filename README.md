@@ -24,8 +24,6 @@ The first step for using this library is to extract the public key from the publ
 openssl x509 -pubkey -noout -in public.cer > public.pem
 ```
 
-You can choose to use the contents of the `.pem` or `.key` files, or the files themselves.
-
 Then you need to save the private key and signature provided by Mobilpay in the environment variables (`.env` file) along with the public key:
 
 ```sh
@@ -138,7 +136,7 @@ The `request` that will be constructed will look like:
 }
 ```
 
-To send a request to Mobilpay, you need to setup a `form` with `method = POST`, and `action = request.url`. 
+To send a request to Mobilpay, you need to setup a `form` with `method = POST`, and `action = request.url`.
 As inputs for the form, you need to send the `request.env_key` and `request.data`.
 
 After being processed and the payment has been made, the Mobilpay API will make an API call to the `confirmUrl` set above. The `confirmUrl` should be an endpoint on the API you are building, because it needs to verify the response from Mobilpay.
@@ -156,35 +154,35 @@ const netopia = new Netopia();
 const response = await netopia.validatePayment(env_key, data);
 
 if (response.error) {
-    /*
-    * Code in case of error
-    */
-    res.set(response.res.set.key, response.res.set.value)
-    res.status(200).send(response.res.send)
-    return
+  /*
+   * Code in case of error
+   */
+  res.set(response.res.set.key, response.res.set.value);
+  res.status(200).send(response.res.send);
+  return;
 }
 
 /*
-* Code in case of success
-*/
+ * Code in case of success
+ */
 switch (response.action) {
-    case 'confirmed':
-        // do something
-        break;
-    case 'paid':
-        // do something
-        break;
-    case 'paid_pending':
-        // do something
-        break;
-    case 'confirmed_pending':
-        // do something
-        break;
+  case "confirmed":
+    // do something
+    break;
+  case "paid":
+    // do something
+    break;
+  case "paid_pending":
+    // do something
+    break;
+  case "confirmed_pending":
+    // do something
+    break;
 }
 
-res.set(response.res.set.key, response.res.set.value)
-res.status(200).send(response.res.send)
-return
+res.set(response.res.set.key, response.res.set.value);
+res.status(200).send(response.res.send);
+return;
 ```
 
 A successful `response` from the validation looks like this
