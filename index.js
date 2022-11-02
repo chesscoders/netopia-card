@@ -17,9 +17,9 @@ const parser = new xml2js.Parser({
  */
 class Netopia {
   constructor({ signature, publicKey, privateKey, sandbox = true } = {}) {
-    this.signature = signature || process.env.MOBILPAY_SIGNATURE;
-    this.publicKey = publicKey || process.env.MOBILPAY_PUBLIC_KEY_B64;
-    this.privateKey = privateKey || process.env.MOBILPAY_PRIVATE_KEY_B64;
+    this.signature = signature || process.env.NETOPIA_SIGNATURE;
+    this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
+    this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
     this.sandbox = sandbox;
     this.clientData = {
       billing: null,

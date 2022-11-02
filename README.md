@@ -1,42 +1,42 @@
 # Netopia Card
 
-![alt text](./images/logo.svg "Logo")
+Lightweight NodeJS library to integrate [Netopia mobilPay](https://netopia-payments.com) payment gateway in your projects.
 
-### About
-
-This is a very lightweight NodeJS library to integrate [Netopia mobilPay](https://www.mobilpay.ro/public/) payment gateway in your projects.
-
-- builds mobilPay request from the input data
+- builds Netopia mobilPay request from the input data
 - adds split payments field to the request to send part of the payment to another account
-- validates mobilPay response based on the private key associated with the account
+- validates Netopia mobilPay response based on the private key associated with the account
 
-### Installation
+## Installation
 
 ```sh
 npm i netopia-card
+#or
+yarn add netopia-card
 ```
 
-### Usage
+## Usage
 
-The first step for using this library is to extract the public key from the public certificate given to you by Mobilpay.
+The first step for using this library is to set yor unique environment variables from an **approved** Netopia sales point.
 
-```sh
-openssl x509 -pubkey -noout -in public.cer > public.pem
-```
+You can find these keys in the [Netopia admin dashboard](https://admin.netopia-payments.com/domains) > Puncte de vanzare > Vezi lista > Setari tehnice
 
-Then you need to save the private key and signature provided by Mobilpay in the environment variables (`.env` file) along with the public key:
+Your `.env` file should look like this:
 
 ```sh
-MOBILPAY_PRIVATE_KEY_B64="-----BEGIN PRIVATE KEY-----XXXX...XXXX-----END PRIVATE KEY-----"
-MOBILPAY_PUBLIC_KEY_B64="-----BEGIN CERTIFICATE-----XXXX...XXXX-----END CERTIFICATE-----"
-MOBILPAY_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
+NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
+NETOPIA_PRIVATE_KEY_B64="-----BEGIN PRIVATE KEY-----
+XXXX...XXXX
+-----END PRIVATE KEY-----"
+NETOPIA_PUBLIC_KEY_B64="-----BEGIN CERTIFICATE-----
+XXXX...XXXX
+-----END CERTIFICATE-----"
 ```
 
 Import the library
 
 ```javascript
-const Netopia = require("netopia-card"); // ES5
-import Netopia from "netopia-card"; // ES6
+const Netopia = require('netopia-card'); // ES5
+import Netopia from 'netopia-card'; // ES6
 ```
 
 | `constructor` params | Type      | Description                      |
@@ -46,7 +46,7 @@ import Netopia from "netopia-card"; // ES6
 | privateKey           | `String`  | Private key provided by Mobilpay |
 | sandbox              | `Boolean` | Use for sandbox                  |
 
-If you saved the signature, the public key, and the private key in the `.env` file, you do not have to provide the constructor with no parameter. These will be taken from the environment variables if they exist.
+If you saved the signature, the public key, and the private key in the `.env` file, you do not have to provide the constructor with parameters. These will be taken from the environment variables if they exist.
 
 ```javascript
 const netopia = new Netopia();
@@ -55,12 +55,11 @@ const netopia = new Netopia();
 or
 
 ```javascript
-const netopia = new Netopia(
-  "XXXX-XXXX-XXXX-XXXX-XXXX", // Mobilpay signature
-  "-----BEGIN CERTIFICATE-----XXXX...XXXX-----END CERTIFICATE-----", // Mobilpay public key
-  "-----BEGIN PRIVATE KEY-----XXXX...XXXX-----END PRIVATE KEY-----", // Mobilpay private key
-  true // sandbox
-);
+const netopia = new Netopia({
+  signature, // Netopia mobilPay signature
+  publicKey, // Netopia mobilPay public key
+  privateKey, // Netopia mobilPay private key
+});
 ```
 
 After initialization, you need to initialize and set the client and payment details.
@@ -93,8 +92,8 @@ netopia.setClientBillingData({
 | amount                  | `Number` | The amount to be paid                                           |
 | currency                | `String` | The currency in which the payment will take place               |
 | details                 | `String` | The details of the payment                                      |
-| confirmUrl              | `String` | The url which the MobilPay API should call for confirmation     |
-| returnUrl               | `String` | The url which the MobilPay API should return after confirmation |
+| confirmUrl              | `String` | The url which the Netopia API should call for confirmation      |
+| returnUrl               | `String` | The url which the Netopia API should return after confirmation  |
 
 ```javascript
 netopia.setPaymentData({
@@ -161,7 +160,6 @@ if (response.error) {
    */
   res.set(response.res.set.key, response.res.set.value);
   res.status(200).send(response.res.send);
-  return;
 }
 
 /*
@@ -184,7 +182,6 @@ switch (response.action) {
 
 res.set(response.res.set.key, response.res.set.value);
 res.status(200).send(response.res.send);
-return;
 ```
 
 A successful `response` from the validation looks like this:
@@ -206,4 +203,14 @@ A successful `response` from the validation looks like this:
 }
 ```
 
-The `returnUrl` can be a static page to indicate the end-user that the payment has been made.
+## Implementation details
+
+### Confirm URL vs return URL
+
+- **confirm URL** - a URL in your API that will be called whenever the status of a payment changes
+- **return URL** - a URL in your web application where the client will be redirected to once the payment is complete.
+
+The `returnUrl` **should not be confused with a success or cancel URL**, the information displayed here is dynamic,
+based on the information previously sent to the `confirmUrl`.
+
+The `returnUrl` should be a static page to indicate the end-user that the payment has been made.
