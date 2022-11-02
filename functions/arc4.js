@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 /**
  * @file arc4 normal
  * @module arc4
@@ -107,14 +107,14 @@ function Arc4(key) {
 Arc4.prototype.change = function (key) {
   if (Array.isArray(key)) {
     this.key = key;
-  } else if (typeof key === "string" || Buffer.isBuffer(key)) {
+  } else if (typeof key === 'string' || Buffer.isBuffer(key)) {
     this.key = new Array(key.length);
     var keys = new Buffer(key);
     for (var i = 0, ii = keys.length; i < ii; ++i) {
       this.key[i] = keys[i];
     }
   } else {
-    throw new Error("Invalid data");
+    throw new Error('Invalid data');
   }
   this.ksa = gKsa(this.key);
   return;
@@ -130,9 +130,9 @@ Arc4.prototype.change = function (key) {
  * @return {String}
  */
 Arc4.prototype.encodeString = function (str, input_encoding, output_encoding) {
-  var out = new Buffer(str, input_encoding || "utf8");
+  var out = new Buffer(str, input_encoding || 'utf8');
   var l = out.length;
-  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || "hex");
+  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || 'hex');
 };
 
 /**
@@ -145,9 +145,9 @@ Arc4.prototype.encodeString = function (str, input_encoding, output_encoding) {
  * @return {String}
  */
 Arc4.prototype.decodeString = function (str, input_encoding, output_encoding) {
-  var out = new Buffer(str, input_encoding || "hex");
+  var out = new Buffer(str, input_encoding || 'hex');
   var l = out.length;
-  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || "utf8");
+  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || 'utf8');
 };
 
 /**
@@ -187,7 +187,7 @@ Arc4.prototype.encodeBuffer = Arc4.prototype.decodeBuffer = function (buff) {
  * @param {String} [output_encoding] - output
  */
 Arc4.prototype.encode = function (boh, input_encoding, output_encoding) {
-  if (typeof boh === "string") {
+  if (typeof boh === 'string') {
     return this.encodeString(boh, input_encoding, output_encoding);
   }
   if (Array.isArray(boh)) {
@@ -196,7 +196,7 @@ Arc4.prototype.encode = function (boh, input_encoding, output_encoding) {
   if (Buffer.isBuffer(boh)) {
     return this.encodeBuffer(boh);
   }
-  throw new Error("Invalid data");
+  throw new Error('Invalid data');
 };
 
 /**
@@ -208,7 +208,7 @@ Arc4.prototype.encode = function (boh, input_encoding, output_encoding) {
  * @param {String} [output_encoding] - output
  */
 Arc4.prototype.decode = function (boh, input_encoding, output_encoding) {
-  if (typeof boh === "string") {
+  if (typeof boh === 'string') {
     return this.decodeString(boh, input_encoding, output_encoding);
   }
   if (Array.isArray(boh)) {
@@ -217,5 +217,5 @@ Arc4.prototype.decode = function (boh, input_encoding, output_encoding) {
   if (Buffer.isBuffer(boh)) {
     return this.decodeBuffer(boh);
   }
-  throw new Error("Invalid data");
+  throw new Error('Invalid data');
 };

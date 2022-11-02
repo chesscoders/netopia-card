@@ -1,7 +1,7 @@
-require("dotenv").config();
-const decrypt = require("./functions/decrypt");
-const encrypt = require("./functions/encrypt");
-const xml2js = require("xml2js");
+require('dotenv').config();
+const decrypt = require('./functions/decrypt');
+const encrypt = require('./functions/encrypt');
+const xml2js = require('xml2js');
 
 const builder = new xml2js.Builder({
   cdata: true,
@@ -106,12 +106,12 @@ class Netopia {
    */
   setPaymentData({ orderId, amount, currency, details, confirmUrl, returnUrl }) {
     if (!this.clientData.billing) {
-      throw new Error("BILLING_DATA_MISSING");
+      throw new Error('BILLING_DATA_MISSING');
     }
     if (!this.clientData.shipping) {
       this.setClientShippingData(this.clientData.billing);
     }
-    if (typeof this.splitPayment === "undefined") {
+    if (typeof this.splitPayment === 'undefined') {
       this.splitPayment = null;
     }
     this.paymentData = {
@@ -119,7 +119,7 @@ class Netopia {
         $: {
           id: orderId,
           timestamp: new Date().getTime(),
-          type: "card",
+          type: 'card',
         },
         signature: this.signature,
         url: {
@@ -135,13 +135,13 @@ class Netopia {
           contact_info: {
             billing: {
               $: {
-                type: "person",
+                type: 'person',
               },
               ...this.clientData.billing,
             },
             shipping: {
               $: {
-                type: "person",
+                type: 'person',
               },
               ...this.clientData.shipping,
             },
@@ -154,23 +154,23 @@ class Netopia {
 
   buildRequest() {
     if (!this.paymentData) {
-      throw new Error("PAYMENT_DATA_MISSING");
+      throw new Error('PAYMENT_DATA_MISSING');
     }
     let xml = null;
     let request = null;
     try {
       xml = builder.buildObject(this.paymentData);
     } catch (e) {
-      throw new Error("XML_BUILDER_ERROR");
+      throw new Error('XML_BUILDER_ERROR');
     }
     try {
       request = encrypt(this.publicKey, xml);
     } catch (e) {
-      throw new Error("RC4_BUILDER_ERROR");
+      throw new Error('RC4_BUILDER_ERROR');
     }
 
     return {
-      url: this.sandbox ? "http://sandboxsecure.mobilpay.ro" : "https://secure.mobilpay.ro",
+      url: this.sandbox ? 'http://sandboxsecure.mobilpay.ro' : 'https://secure.mobilpay.ro',
       env_key: request.envKey,
       data: request.envData,
     };
@@ -220,8 +220,8 @@ class Netopia {
           error: errorObj,
           res: {
             set: {
-              key: "Content-Type",
-              value: "application/xml",
+              key: 'Content-Type',
+              value: 'application/xml',
             },
             send: `<?xml version="1.0" encoding="utf-8" ?><crc error_code="${errorCode}">${errorMessage}</crc>`,
           },
@@ -235,8 +235,8 @@ class Netopia {
         error: null,
         res: {
           set: {
-            key: "Content-Type",
-            value: "application/xml",
+            key: 'Content-Type',
+            value: 'application/xml',
           },
           send: `<?xml version="1.0" encoding="utf-8" ?><crc>${errorMessage}</crc>`,
         },
