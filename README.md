@@ -75,15 +75,6 @@ After initialization, you need to initialize and set the client and payment deta
 | email                         | `String` | The client's email        |
 | phone                         | `String` | The client's phone number |
 
-| `setPaymentData` params | Type     | Description                                                     |
-| ----------------------- | -------- | --------------------------------------------------------------- |
-| orderId                 | `String` | The unique identifier for the payment                           |
-| amount                  | `Number` | The amount to be paid                                           |
-| currency                | `String` | The currency in which the payment will take place               |
-| details                 | `String` | The details of the payment                                      |
-| confirmUrl              | `String` | The url which the MobilPay API should call for confirmation     |
-| returnUrl               | `String` | The url which the MobilPay API should return after confirmation |
-
 ```javascript
 netopia.setClientBillingData({
   firstName: "John",
@@ -94,7 +85,18 @@ netopia.setClientBillingData({
   email: "example@email.com",
   phone: "1234567890",
 });
+```
 
+| `setPaymentData` params | Type     | Description                                                     |
+| ----------------------- | -------- | --------------------------------------------------------------- |
+| orderId                 | `String` | The unique identifier for the payment                           |
+| amount                  | `Number` | The amount to be paid                                           |
+| currency                | `String` | The currency in which the payment will take place               |
+| details                 | `String` | The details of the payment                                      |
+| confirmUrl              | `String` | The url which the MobilPay API should call for confirmation     |
+| returnUrl               | `String` | The url which the MobilPay API should return after confirmation |
+
+```javascript
 netopia.setPaymentData({
   orderId: Date.now().toString(),
   amount: 1,
@@ -128,7 +130,7 @@ const request = netopia.buildRequest();
 
 The `request` that will be constructed will look like:
 
-```json
+```javascript
 {
   "url": "http://sandboxsecure.mobilpay.ro",
   "env_key": "OQR4VUMOHY1W+jMcE8NCc7Es2mf37+lqECwygW8rS1O55E2kkwwZqY9oyG4WuXeyN7rjIiC3YvmvJ1od8+5f2p1ygxe4H1gp0naxfEi52W/PAuoChgqkVKswvI67kzKg3yc7JGpbPcOp+hTgnTAzegWGb69WTpLxWf+HGHs0A/o=",
@@ -136,12 +138,12 @@ The `request` that will be constructed will look like:
 }
 ```
 
-To send a request to Mobilpay, you need to setup a `form` with `method = POST`, and `action = request.url`.
+To send a request to Mobilpay, you need to setup a `form` with `method="POST"`, and `action=request.url`.
 As inputs for the form, you need to send the `request.env_key` and `request.data`.
 
 After being processed and the payment has been made, the Mobilpay API will make an API call to the `confirmUrl` set above. The `confirmUrl` should be an endpoint on the API you are building, because it needs to verify the response from Mobilpay.
 
-To verify, you need the `validatePayment` method which take the `env_key` and `data` from the Mobilpay request body, and also set the private key (from file or string)
+To verify, you need the `validatePayment` method which take the `env_key` and `data` from the Mobilpay request body, and also set the private key (from file or string).
 
 | `validatePayment` params | Type     | Description                                |
 | ------------------------ | -------- | ------------------------------------------ |
@@ -185,7 +187,7 @@ res.status(200).send(response.res.send);
 return;
 ```
 
-A successful `response` from the validation looks like this
+A successful `response` from the validation looks like this:
 
 ```javascript
 {

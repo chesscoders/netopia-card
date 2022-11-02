@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const rc4 = require("./arc4");
+const rc4 = require("arc4");
 
 const decrypt = (privateKey, envKey, data) => {
   const buffer = Buffer.from(envKey, "base64");

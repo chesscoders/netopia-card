@@ -152,11 +152,6 @@ class Netopia {
     };
   }
 
-  /**
-   * Build the request for the API call
-   *
-   * @param {Boolean} sandbox Use for sandbox
-   */
   buildRequest() {
     if (!this.paymentData) {
       throw new Error("PAYMENT_DATA_MISSING");
@@ -185,7 +180,7 @@ class Netopia {
    * Get the payment confirmation
    *
    * @param {String} envKey The env_key.
-   * @param data The data.
+   * @param {String} data The data.
    */
   confirmPayment(envKey, data) {
     const privateKey = this.privateKey;

@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const rc4 = require("./arc4");
+const rc4 = require("arc4");
 const utf8 = require("utf8");
 
 const encrypt = (publicKey, data) => {

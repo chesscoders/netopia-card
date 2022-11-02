@@ -23,6 +23,7 @@
   "license": "MIT",
   "homepage": "https://github.com/chesscoders/netopia-card#readme",
   "dependencies": {
+    "arc4": "^3.4.0",
     "crypto": "^1.0.1",
     "dotenv": "^16.0.3",
     "utf8": "^3.0.0",
