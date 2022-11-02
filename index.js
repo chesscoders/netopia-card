@@ -1,3 +1,4 @@
+require("dotenv").config();
 const decrypt = require("./mobilpay/decrypt");
 const encrypt = require("./mobilpay/encrypt");
 const xml2js = require("xml2js");
@@ -103,14 +104,7 @@ class Netopia {
    * @param {String} confirmUrl The url which the MobilPay API should call for confirmation.
    * @param {String} returnUrl The url which the MobilPay API should return after confirmation.
    */
-  setPaymentData({
-    orderId,
-    amount,
-    currency,
-    details,
-    confirmUrl,
-    returnUrl,
-  }) {
+  setPaymentData({ orderId, amount, currency, details, confirmUrl, returnUrl }) {
     if (!this.clientData.billing) {
       throw new Error("BILLING_DATA_MISSING");
     }
@@ -181,9 +175,7 @@ class Netopia {
     }
 
     return {
-      url: this.sandbox
-        ? "http://sandboxsecure.mobilpay.ro"
-        : "https://secure.mobilpay.ro",
+      url: this.sandbox ? "http://sandboxsecure.mobilpay.ro" : "https://secure.mobilpay.ro",
       env_key: request.envKey,
       data: request.envData,
     };
@@ -198,15 +190,12 @@ class Netopia {
   confirmPayment(envKey, data) {
     const privateKey = this.privateKey;
     return new Promise(function (resolve, reject) {
-      parser.parseString(
-        decrypt(privateKey, envKey, data),
-        function (err, result) {
-          if (err) {
-            reject(err);
-          }
-          resolve(result);
+      parser.parseString(decrypt(privateKey, envKey, data), function (err, result) {
+        if (err) {
+          reject(err);
         }
-      );
+        resolve(result);
+      });
     });
   }
 
