@@ -1,6 +1,6 @@
 {
   "name": "netopia-card",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Improved Netopia card gateway library",
   "main": "index.js",
   "files": [
