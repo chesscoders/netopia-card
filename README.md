@@ -13,7 +13,7 @@ This is a very lightweight NodeJS library to integrate [Netopia mobilPay](https:
 ### Installation
 
 ```sh
-npm install netopia-card
+npm i netopia-card
 ```
 
 ### Usage
