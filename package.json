@@ -1,4 +1,27 @@
 {
+  "name": "netopia-card",
+  "version": "0.1.0",
+  "description": "Improved Netopia card gateway library",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "functions"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "netopia",
+    "mobilpay",
+    "card"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chesscoders/netopia-card.git"
+  },
+  "author": "Mihai-Nicolae Dulgheru <mihai.dulgheru18@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/chesscoders/netopia-card#readme",
   "dependencies": {
     "crypto": "^1.0.1",
     "dotenv": "^16.0.3",
