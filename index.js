@@ -1,6 +1,6 @@
 require("dotenv").config();
-const decrypt = require("./mobilpay/decrypt");
-const encrypt = require("./mobilpay/encrypt");
+const decrypt = require("./functions/decrypt");
+const encrypt = require("./functions/encrypt");
 const xml2js = require("xml2js");
 
 const builder = new xml2js.Builder({
