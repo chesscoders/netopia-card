@@ -3,6 +3,8 @@ const Netopia = require("../netopia");
 module.exports = async (req, res) => {
   // ...
   const netopia = new Netopia();
+  // * For production
+  // const netopia = new Netopia({ sandbox: false });
   netopia.setClientBillingData({
     firstName: "John",
     lastName: "Doe",
@@ -18,7 +20,7 @@ module.exports = async (req, res) => {
     returnUrl: "https://example.com",
     confirmUrl: "https://example.com",
   });
-  const { env_key, data } = netopia.buildRequest();
+  const { data, env_key, url } = netopia.buildRequest();
 
-  return res.status(200).json({ env_key, data });
+  return res.status(200).json({ data, env_key, url });
 };

@@ -15,7 +15,7 @@ const parser = new xml2js.Parser({
  * @see https://www.npmjs.com/package/mobilpay-card
  */
 class Netopia {
-  constructor({ signature, publicKey, privateKey, sandbox } = {}) {
+  constructor({ privateKey, publicKey, sandbox, signature } = {}) {
     this.privateKey = privateKey;
     this.publicKey = publicKey;
     this.sandbox = sandbox;
@@ -183,7 +183,7 @@ class Netopia {
     return {
       url: this.sandbox
         ? "http://sandboxsecure.mobilpay.ro"
-        : "https://secure.mobilpay.ro/en",
+        : "https://secure.mobilpay.ro",
       env_key: request.envKey,
       data: request.envData,
     };
