@@ -15,11 +15,11 @@ const parser = new xml2js.Parser({
  * @see https://www.npmjs.com/package/mobilpay-card
  */
 class Netopia {
-  constructor({ privateKey, publicKey, sandbox, signature } = {}) {
-    this.privateKey = privateKey;
-    this.publicKey = publicKey;
+  constructor({ signature, publicKey, privateKey, sandbox = true } = {}) {
+    this.signature = signature || process.env.MOBILPAY_SIGNATURE;
+    this.publicKey = publicKey || process.env.MOBILPAY_PUBLIC_KEY_B64;
+    this.privateKey = privateKey || process.env.MOBILPAY_PRIVATE_KEY_B64;
     this.sandbox = sandbox;
-    this.signature = signature;
     this.clientData = {
       billing: null,
       shipping: null,
@@ -73,9 +73,9 @@ class Netopia {
    * Set the split payment information.
    *
    * @param {String} firstDestinationId The sac id (signature) of the first recipient.
-   * @param {String} firstDestinationAmount The amount for the first recipient.
+   * @param {Number} firstDestinationAmount The amount for the first recipient.
    * @param {String} secondDestinationId The sac id (signature) of the second recipient.
-   * @param {String} secondDestinationAmount The amount for the second recipient.
+   * @param {Number} secondDestinationAmount The amount for the second recipient.
    */
   setSplitPayment({
     firstDestinationId,
@@ -213,11 +213,11 @@ class Netopia {
   /**
    * Validate a payment
    *
-   * @param {String} envKey The env_key from the Mobilpay request body
-   * @param data The data from the Mobilpay request body
+   * @param {String} env_key The env_key from the Mobilpay request body
+   * @param {String} data The data from the Mobilpay request body
    */
-  async validatePayment(envKey, data) {
-    const confirmedPayment = await this.confirmPayment(envKey, data);
+  async validatePayment(env_key, data) {
+    const confirmedPayment = await this.confirmPayment(env_key, data);
     return new Promise(function (resolve, reject) {
       if (confirmedPayment.errorType) {
         reject(confirmedPayment.errorMessage);
