@@ -16,11 +16,11 @@ const parser = new xml2js.Parser({
  * @see https://www.npmjs.com/package/mobilpay-card
  */
 class Netopia {
-  constructor({ signature, publicKey, privateKey, sandbox = true } = {}) {
+  constructor({ signature, publicKey, privateKey, sandbox } = {}) {
     this.signature = signature || process.env.NETOPIA_SIGNATURE;
     this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
     this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
-    this.sandbox = sandbox;
+    this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
     this.clientData = {
       billing: null,
       shipping: null,
