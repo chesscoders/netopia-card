@@ -1,6 +1,7 @@
 require('dotenv').config();
 const decrypt = require('./functions/decrypt');
 const encrypt = require('./functions/encrypt');
+const removeDiacritics = require('./functions/remove-diacritics');
 const xml2js = require('xml2js');
 
 const builder = new xml2js.Builder({
@@ -114,7 +115,7 @@ class Netopia {
     if (typeof this.splitPayment === 'undefined') {
       this.splitPayment = null;
     }
-    this.paymentData = {
+    const paymentData = {
       order: {
         $: {
           id: orderId,
@@ -150,6 +151,8 @@ class Netopia {
         ...this.splitPayment,
       },
     };
+    // IMPORTANT: Netopia does not allow diacritics in the XML
+    this.paymentData = removeDiacritics(paymentData);
   }
 
   buildRequest() {

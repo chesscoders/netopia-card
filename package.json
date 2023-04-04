@@ -1,6 +1,6 @@
 {
   "name": "netopia-card",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Improved Netopia card gateway library",
   "main": "index.js",
   "files": [
@@ -25,6 +25,7 @@
   "dependencies": {
     "crypto": "^1.0.1",
     "dotenv": "^16.0.3",
+    "fold-to-ascii": "^5.0.1",
     "utf8": "^3.0.0",
     "xml2js": "^0.4.23"
   },
