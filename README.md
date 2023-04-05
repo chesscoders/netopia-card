@@ -14,6 +14,11 @@ npm i netopia-card
 yarn add netopia-card
 ```
 
+## Useful links
+
+- [request structure for card payments](https://support.netopia-payments.com/en-us/article/39-care-este-structura-unui-request-de-plata-prin-card)
+- [demo cards used for sandbox](https://support.netopia-payments.com/en-us/article/52-carduri-de-test)
+
 ## Usage
 
 The first step for using this library is to set yor unique environment variables from an **approved** Netopia sales point.
