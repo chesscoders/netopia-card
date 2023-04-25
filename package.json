@@ -23,11 +23,10 @@
   "license": "MIT",
   "homepage": "https://github.com/chesscoders/netopia-card#readme",
   "dependencies": {
-    "crypto": "^1.0.1",
     "dotenv": "^16.0.3",
     "fold-to-ascii": "^5.0.1",
     "utf8": "^3.0.0",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.5.0"
   },
   "devDependencies": {
     "eslint": "^8.26.0",
