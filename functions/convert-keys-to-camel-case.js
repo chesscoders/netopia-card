@@ -1,3 +1,5 @@
+const { camelCase } = require('change-case');
+
 /**
  * Converts all keys in an object to camel case.
  *
@@ -11,7 +13,7 @@ const convertKeysToCamelCase = (obj) => {
     const convertedObj = {};
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        const camelCaseKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        const camelCaseKey = camelCase(key);
         convertedObj[camelCaseKey] = convertKeysToCamelCase(obj[key]);
       }
     }
