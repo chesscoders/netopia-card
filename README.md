@@ -46,9 +46,9 @@ import Netopia from 'netopia-card'; // ES6
 
 | `constructor` params | Type      | Description                      |
 | -------------------- | --------- | -------------------------------- |
-| signature            | `String`  | Signature provided by Mobilpay   |
-| publicKey            | `String`  | Public key provided by Mobilpay  |
-| privateKey           | `String`  | Private key provided by Mobilpay |
+| signature            | `string`  | Signature provided by Mobilpay   |
+| publicKey            | `string`  | Public key provided by Mobilpay  |
+| privateKey           | `string`  | Private key provided by Mobilpay |
 | sandbox              | `Boolean` | Use for sandbox                  |
 
 If you saved the signature, the public key, and the private key in the `.env` file, you do not have to provide the constructor with parameters. These will be taken from the environment variables if they exist.
@@ -71,43 +71,59 @@ After initialization, you need to initialize and set the client and payment deta
 
 | `setClientBillingData` params | Type     | Description               |
 | ----------------------------- | -------- | ------------------------- |
-| firstName                     | `String` | The client's first name   |
-| lastName                      | `String` | The client's last name    |
-| county                        | `String` | The client's county       |
-| city                          | `String` | The client's city         |
-| address                       | `String` | The client's address      |
-| email                         | `String` | The client's email        |
-| phone                         | `String` | The client's phone number |
+| firstName                     | `string` | The client's first name   |
+| lastName                      | `string` | The client's last name    |
+| country                       | `string` | The client's country      |
+| county                        | `string` | The client's county       |
+| city                          | `string` | The client's city         |
+| zipCode                       | `string` | The client's zip code     |
+| address                       | `string` | The client's address      |
+| email                         | `string` | The client's email        |
+| phone                         | `string` | The client's phone number |
+| bank                          | `string` | The client's bank         |
+| iban                          | `string` | The client's iban         |
 
 ```javascript
 netopia.setClientBillingData({
-  firstName: "John",
-  lastName: "Doe",
-  county: "Romania",
-  city: "Bucharest",
-  address: "123 Main St",
-  email: "example@email.com",
-  phone: "1234567890",
+  firstName: 'John',
+  lastName: 'Doe',
+  country: 'Romania',
+  county: 'Bucharest',
+  city: 'Bucharest',
+  zipCode: '123456',
+  address: '123 Main St',
+  email: 'example@email.com',
+  phone: '1234567890',
+  bank: 'Bank',
+  iban: 'RO00BANK0000000000000000',
 });
 ```
 
-| `setPaymentData` params | Type     | Description                                                     |
-| ----------------------- | -------- | --------------------------------------------------------------- |
-| orderId                 | `String` | The unique identifier for the payment                           |
-| amount                  | `Number` | The amount to be paid                                           |
-| currency                | `String` | The currency in which the payment will take place               |
-| details                 | `String` | The details of the payment                                      |
-| confirmUrl              | `String` | The url which the Netopia API should call for confirmation      |
-| returnUrl               | `String` | The url which the Netopia API should return after confirmation  |
+| `setParams` params | Type                                  | Description                |
+| ------------------ | ------------------------------------- | -------------------------- |
+| params             | `Array<{ name: string, value: any }>` | The params for the payment |
+
+```javascript
+netopia.setParams([{ name: 'param1Name', value: 'param1Value' }]);
+```
+
+| `setPaymentData` params | Type     | Description                                                    |
+| ----------------------- | -------- | -------------------------------------------------------------- |
+| orderId                 | `string` | The unique identifier for the payment                          |
+| amount                  | `number` | The amount to be paid                                          |
+| currency                | `string` | The currency in which the payment will take place              |
+| details                 | `string` | The details of the payment                                     |
+| confirmUrl              | `string` | The url which the Netopia API should call for confirmation     |
+| returnUrl               | `string` | The url which the Netopia API should return after confirmation |
 
 ```javascript
 netopia.setPaymentData({
   orderId: Date.now().toString(),
   amount: 1,
-  currency: "RON",
-  details: "No details",
-  confirmUrl: "http://confirm.url",
-  returnUrl: "http://return.url",
+  currency: 'RON',
+  details: 'No details',
+  confirmUrl: 'http://confirm.url',
+  returnUrl: 'http://return.url',
 });
 ```
 
@@ -117,13 +133,13 @@ For setting up split payments you can use the `setSplitPayment` function:
 
 | `setSplitPayment` params | Type     | Description                                    |
 | ------------------------ | -------- | ---------------------------------------------- |
-| firstDestinationId       | `String` | The sac id (signature) of the first recipient  |
-| firstDestinationAmount   | `Number` | The amount for the first recipient             |
-| secondDestinationId      | `String` | The sac id (signature) of the second recipient |
-| secondDestinationAmount  | `Number` | The amount for the second recipient            |
+| firstDestinationId       | `string` | The sac id (signature) of the first recipient  |
+| firstDestinationAmount   | `number` | The amount for the first recipient             |
+| secondDestinationId      | `string` | The sac id (signature) of the second recipient |
+| secondDestinationAmount  | `number` | The amount for the second recipient            |
 
 ```javascript
-netopia.setSplitPayment("<first_recipient_sac_id>", 1, "<second_recipient_sac_id>", 2);
+netopia.setSplitPayment('<first_recipient_sac_id>', 1, '<second_recipient_sac_id>', 2);
 ```
 
 To build the request
@@ -151,8 +167,8 @@ To verify, you need the `validatePayment` method which take the `env_key` and `d
 
 | `validatePayment` params | Type     | Description                                |
 | ------------------------ | -------- | ------------------------------------------ |
-| env_key                  | `String` | The env_key from the Mobilpay request body |
-| data                     | `String` | The data from the Mobilpay request body    |
+| env_key                  | `string` | The env_key from the Mobilpay request body |
+| data                     | `string` | The data from the Mobilpay request body    |
 
 ```js
 const { data, env_key } = req.body;
@@ -171,16 +187,16 @@ if (response.error) {
  * Code in case of success
  */
 switch (response.action) {
-  case "confirmed":
+  case 'confirmed':
     // do something
     break;
-  case "paid":
+  case 'paid':
     // do something
     break;
-  case "paid_pending":
+  case 'paid_pending':
     // do something
     break;
-  case "confirmed_pending":
+  case 'confirmed_pending':
     // do something
     break;
 }
