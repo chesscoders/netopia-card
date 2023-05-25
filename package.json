@@ -1,6 +1,6 @@
 {
   "name": "netopia-card",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Improved Netopia card gateway library",
   "main": "index.js",
   "files": [
@@ -23,6 +23,7 @@
   "license": "MIT",
   "homepage": "https://github.com/chesscoders/netopia-card#readme",
   "dependencies": {
+    "change-case": "^4.1.2",
     "dotenv": "^16.0.3",
     "fold-to-ascii": "^5.0.1",
     "utf8": "^3.0.0",

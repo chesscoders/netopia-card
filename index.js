@@ -1,4 +1,5 @@
 require('dotenv').config();
+const convertKeysToCamelCase = require('./functions/convert-keys-to-camel-case');
 const decrypt = require('./functions/decrypt');
 const encrypt = require('./functions/encrypt');
 const removeDiacritics = require('./functions/remove-diacritics');
@@ -12,7 +13,7 @@ const parser = new xml2js.Parser({
 });
 
 /**
- * Netopia Mobilpay class
+ * Netopia mobilPay class
  * inspired by mobilpay-card NPM package
  * @see https://www.npmjs.com/package/mobilpay-card
  */
@@ -27,64 +28,81 @@ class Netopia {
       shipping: null,
     };
     this.paymentData = null;
+    this.splitPayment = null;
+    this.params = null;
   }
 
   /**
    * Set the client billing information.
    *
-   * @param {String} firstName The client's first name.
-   * @param {String} lastName The client's last name.
-   * @param {String} county The client's county.
-   * @param {String} city The client's city.
-   * @param {String} address The client's address.
-   * @param {String} email The client's email.
-   * @param {String} phone The client's phone number.
+   * @param {string} firstName The client's first name.
+   * @param {string} lastName The client's last name.
+   * @param {string} country The client's country.
+   * @param {string} county The client's county.
+   * @param {string} city The client's city.
+   * @param {string} zipCode The client's zip code.
+   * @param {string} address The client's address.
+   * @param {string} email The client's email.
+   * @param {string} phone The client's phone number.
+   * @param {string} bank The client's bank.
+   * @param {string} iban The client's iban.
    */
-  setClientBillingData({ firstName, lastName, address, email, phone }) {
+  setClientBillingData({ firstName, lastName, country, county, city, zipCode, address, email, phone, bank, iban }) {
     this.clientData.billing = {
       first_name: firstName,
       last_name: lastName,
+      country: country,
+      county: county,
+      city: city,
+      zip_code: zipCode,
       address: address,
       email: email,
       mobile_phone: phone,
+      bank: bank,
+      iban: iban,
     };
   }
 
   /**
    * Set the client shipping information.
    *
-   * @param {String} firstName The client's first name.
-   * @param {String} lastName The client's last name.
-   * @param {String} county The client's county.
-   * @param {String} city The client's city.
-   * @param {String} address The client's address.
-   * @param {String} email The client's email.
-   * @param {String} phone The client's phone number.
+   * @param {string} firstName The client's first name.
+   * @param {string} lastName The client's last name.
+   * @param {string} country The client's country.
+   * @param {string} county The client's county.
+   * @param {string} city The client's city.
+   * @param {string} zipCode The client's zip code.
+   * @param {string} address The client's address.
+   * @param {string} email The client's email.
+   * @param {string} phone The client's phone number.
+   * @param {string} bank The client's bank.
+   * @param {string} iban The client's iban.
    */
-  setClientShippingData({ firstName, lastName, address, email, phone }) {
+  setClientShippingData({ firstName, lastName, country, county, city, zipCode, address, email, phone, bank, iban }) {
     this.clientData.shipping = {
       first_name: firstName,
       last_name: lastName,
+      country: country,
+      county: county,
+      city: city,
+      zip_code: zipCode,
       address: address,
       email: email,
       mobile_phone: phone,
+      bank: bank,
+      iban: iban,
     };
   }
 
   /**
    * Set the split payment information.
    *
-   * @param {String} firstDestinationId The sac id (signature) of the first recipient.
-   * @param {Number} firstDestinationAmount The amount for the first recipient.
-   * @param {String} secondDestinationId The sac id (signature) of the second recipient.
-   * @param {Number} secondDestinationAmount The amount for the second recipient.
+   * @param {string} firstDestinationId The sac id (signature) of the first recipient.
+   * @param {number} firstDestinationAmount The amount for the first recipient.
+   * @param {string} secondDestinationId The sac id (signature) of the second recipient.
+   * @param {number} secondDestinationAmount The amount for the second recipient.
    */
-  setSplitPayment({
-    firstDestinationId,
-    firstDestinationAmount,
-    secondDestinationId,
-    secondDestinationAmount,
-  }) {
+  setSplitPayment({ firstDestinationId, firstDestinationAmount, secondDestinationId, secondDestinationAmount }) {
     this.splitPayment = {
       split: {
         destinations: [
@@ -96,21 +114,51 @@ class Netopia {
   }
 
   /**
+   * Set the params for the payment.
+   *
+   * @param {Array<{ name: string, value: any }>} params The params for the payment.
+   */
+  setParams(params = []) {
+    if (!Array.isArray(params)) {
+      throw new Error('PARAMS_NOT_ARRAY');
+    }
+    if (params.length === 0) {
+      throw new Error('PARAMS_EMPTY');
+    }
+    if (params.some((param) => typeof param !== 'object')) {
+      throw new Error('PARAMS_NOT_OBJECT');
+    }
+    if (params.some((param) => typeof param.name === 'undefined')) {
+      throw new Error('PARAMS_MISSING_NAME');
+    }
+    if (params.some((param) => typeof param.value === 'undefined')) {
+      throw new Error('PARAMS_MISSING_VALUE');
+    }
+    if (params.some((param) => typeof param.name !== 'string')) {
+      throw new Error('PARAMS_INVALID_NAME');
+    }
+    this.params = { param: params };
+  }
+
+  /**
    * Set the client billing information.
    *
-   * @param {String} orderId The id of the order.
-   * @param {String} amount The amount to be charged.
-   * @param {String} currency The currency in which to be charged.
-   * @param {String} details The details about the transaction.
-   * @param {String} confirmUrl The url which the MobilPay API should call for confirmation.
-   * @param {String} returnUrl The url which the MobilPay API should return after confirmation.
+   * @param {string} orderId The id of the order.
+   * @param {number} amount The amount to be charged.
+   * @param {string} currency The currency in which to be charged.
+   * @param {string} details The details about the transaction.
+   * @param {string} confirmUrl The url which the MobilPay API should call for confirmation.
+   * @param {string} returnUrl The url which the MobilPay API should return after confirmation.
    */
   setPaymentData({ orderId, amount, currency, details, confirmUrl, returnUrl }) {
     if (!this.clientData.billing) {
       throw new Error('BILLING_DATA_MISSING');
     }
     if (!this.clientData.shipping) {
-      this.setClientShippingData(this.clientData.billing);
+      this.setClientShippingData({
+        ...convertKeysToCamelCase(this.clientData.billing),
+        phone: this.clientData.billing.mobile_phone,
+      });
     }
     if (typeof this.splitPayment === 'undefined') {
       this.splitPayment = null;
@@ -151,6 +199,9 @@ class Netopia {
         ...this.splitPayment,
       },
     };
+    if (this.params) {
+      paymentData.order.params = this.params;
+    }
     // IMPORTANT: Netopia does not allow diacritics in the XML
     this.paymentData = removeDiacritics(paymentData);
   }
@@ -182,13 +233,13 @@ class Netopia {
   /**
    * Get the payment confirmation
    *
-   * @param {String} envKey The env_key.
-   * @param {String} data The data.
+   * @param {string} env_key The env_key.
+   * @param {string} data The data.
    */
-  confirmPayment(envKey, data) {
+  confirmPayment(env_key, data) {
     const privateKey = this.privateKey;
     return new Promise(function (resolve, reject) {
-      parser.parseString(decrypt(privateKey, envKey, data), function (err, result) {
+      parser.parseString(decrypt(privateKey, env_key, data), function (err, result) {
         if (err) {
           reject(err);
         }
@@ -200,8 +251,8 @@ class Netopia {
   /**
    * Validate a payment
    *
-   * @param {String} env_key The env_key from the Mobilpay request body
-   * @param {String} data The data from the Mobilpay request body
+   * @param {string} env_key The env_key from the mobilPay request body
+   * @param {string} data The data from the mobilPay request body
    */
   async validatePayment(env_key, data) {
     const confirmedPayment = await this.confirmPayment(env_key, data);
