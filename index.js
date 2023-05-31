@@ -116,28 +116,19 @@ class Netopia {
   /**
    * Set the params for the payment.
    *
-   * @param {Array<{ name: string, value: any }>} params The params for the payment.
+   * @param {{ [key: string]: any }} params The params for the payment.
    */
-  setParams(params = []) {
-    if (!Array.isArray(params)) {
-      throw new Error('PARAMS_NOT_ARRAY');
-    }
-    if (params.length === 0) {
-      throw new Error('PARAMS_EMPTY');
-    }
-    if (params.some((param) => typeof param !== 'object')) {
+  setParams(params = {}) {
+    if (typeof params !== 'object') {
       throw new Error('PARAMS_NOT_OBJECT');
     }
-    if (params.some((param) => typeof param.name === 'undefined')) {
-      throw new Error('PARAMS_MISSING_NAME');
+    if (Object.keys(params).length === 0) {
+      throw new Error('PARAMS_EMPTY');
     }
-    if (params.some((param) => typeof param.value === 'undefined')) {
-      throw new Error('PARAMS_MISSING_VALUE');
-    }
-    if (params.some((param) => typeof param.name !== 'string')) {
-      throw new Error('PARAMS_INVALID_NAME');
-    }
-    this.params = { param: params };
+    const paramsArray = Object.keys(params).map((key) => {
+      return { name: key, value: params[key] };
+    });
+    this.params = { param: paramsArray };
   }
 
   /**
