@@ -119,11 +119,9 @@ class Netopia {
    * @param {{ [key: string]: any }} params The params for the payment.
    */
   setParams(params = {}) {
-    if (typeof params !== 'object') {
-      throw new Error('PARAMS_NOT_OBJECT');
-    }
-    if (Object.keys(params).length === 0) {
-      throw new Error('PARAMS_EMPTY');
+    // Do nothing if params is not an object or is empty
+    if (typeof params !== 'object' || Object.keys(params).length === 0) {
+      return;
     }
     const paramsArray = Object.keys(params).map((key) => {
       return { name: key, value: params[key] };
