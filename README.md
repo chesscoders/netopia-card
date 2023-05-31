@@ -99,12 +99,12 @@ netopia.setClientBillingData({
 });
 ```
 
-| `setParams` params | Type                                  | Description                |
-| ------------------ | ------------------------------------- | -------------------------- |
-| params             | `Array<{ name: string, value: any }>` | The params for the payment |
+| `setParams` params | Type                     | Description                |
+| ------------------ | ------------------------ | -------------------------- |
+| params             | `{ [key: string]: any }` | The params for the payment |
 
 ```javascript
-netopia.setParams([{ name: 'param1Name', value: 'param1Value' }]);
+netopia.setParams({ param1: 'string', param2: 1 });
 ```
 
 | `setPaymentData` params | Type     | Description                                                    |
