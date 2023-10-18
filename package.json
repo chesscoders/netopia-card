@@ -3,6 +3,7 @@
   "version": "0.8.0",
   "description": "Improved Netopia card gateway library",
   "main": "index.js",
+  "types": "index.d.ts",
   "files": [
     "index.js",
     "functions"
@@ -32,5 +33,5 @@
   "devDependencies": {
     "eslint": "^8.26.0",
     "prettier": "^2.7.1"
-  }
+  } 
 }
