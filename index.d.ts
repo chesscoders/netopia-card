@@ -75,7 +75,6 @@ declare class Netopia {
         };
     }>;
 }
-
-// export = Netopia;
-export default Netopia;
-export { Netopia }
+export = Netopia;
+// export default Netopia;
+// export { Netopia }
