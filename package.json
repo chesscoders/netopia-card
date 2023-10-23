@@ -1,6 +1,6 @@
 {
-  "name": "netopia-card",
-  "version": "0.8.0",
+  "name": "@bogdan-nita/netopia-card",
+  "version": "0.9.0",
   "description": "Improved Netopia card gateway library",
   "main": "index.js",
   "types": "index.d.ts",
@@ -18,11 +18,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chesscoders/netopia-card.git"
+    "url": "git+https://github.com/bogdan-nita/netopia-card.git"
   },
   "author": "Mihai-Nicolae Dulgheru <mihai.dulgheru18@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/chesscoders/netopia-card#readme",
+  "homepage": "https://github.com/bogdan-nita/netopia-card#readme",
   "dependencies": {
     "change-case": "^4.1.2",
     "dotenv": "^16.0.3",
@@ -33,5 +33,8 @@
   "devDependencies": {
     "eslint": "^8.26.0",
     "prettier": "^2.7.1"
-  } 
+  },
+  "bugs": {
+    "url": "https://github.com/bogdan-nita/netopia-card/issues"
+  }
 }
