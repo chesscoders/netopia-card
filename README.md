@@ -235,3 +235,8 @@ The `returnUrl` **should not be confused with a success or cancel URL**, the inf
 based on the information previously sent to the `confirmUrl`.
 
 The `returnUrl` should be a static page to indicate the end-user that the payment has been made.
+
+## Debugging
+
+This module uses debugging features for important operations.
+To activate debugging set the `SHOW_NETOPIA_DEBUG="yes"` environment variable.
