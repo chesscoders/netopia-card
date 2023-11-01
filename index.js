@@ -47,7 +47,19 @@ class Netopia {
    * @param {string} bank The client's bank.
    * @param {string} iban The client's iban.
    */
-  setClientBillingData({ firstName, lastName, country, county, city, zipCode, address, email, phone, bank, iban }) {
+  setClientBillingData({
+    firstName,
+    lastName,
+    country,
+    county,
+    city,
+    zipCode,
+    address,
+    email,
+    phone,
+    bank,
+    iban,
+  }) {
     this.clientData.billing = {
       first_name: firstName,
       last_name: lastName,
@@ -78,7 +90,19 @@ class Netopia {
    * @param {string} bank The client's bank.
    * @param {string} iban The client's iban.
    */
-  setClientShippingData({ firstName, lastName, country, county, city, zipCode, address, email, phone, bank, iban }) {
+  setClientShippingData({
+    firstName,
+    lastName,
+    country,
+    county,
+    city,
+    zipCode,
+    address,
+    email,
+    phone,
+    bank,
+    iban,
+  }) {
     this.clientData.shipping = {
       first_name: firstName,
       last_name: lastName,
@@ -102,7 +126,12 @@ class Netopia {
    * @param {string} secondDestinationId The sac id (signature) of the second recipient.
    * @param {number} secondDestinationAmount The amount for the second recipient.
    */
-  setSplitPayment({ firstDestinationId, firstDestinationAmount, secondDestinationId, secondDestinationAmount }) {
+  setSplitPayment({
+    firstDestinationId,
+    firstDestinationAmount,
+    secondDestinationId,
+    secondDestinationAmount,
+  }) {
     this.splitPayment = {
       split: {
         destinations: [
@@ -206,6 +235,13 @@ class Netopia {
     } catch (e) {
       throw new Error('XML_BUILDER_ERROR');
     }
+
+    // Show the XML request in the console if the environment variable is set
+    if (process.env.SHOW_NETOPIA_DEBUG === 'yes') {
+      // eslint-disable-next-line no-console
+      console.log('Netopia XML request:', xml);
+    }
+
     try {
       request = encrypt(this.publicKey, xml);
     } catch (e) {
