@@ -236,8 +236,9 @@ class Netopia {
       throw new Error('XML_BUILDER_ERROR');
     }
 
-    // Show debug info when needed
+    // Show the XML request in the console if the environment variable is set
     if (process.env.SHOW_NETOPIA_DEBUG === 'yes') {
+      // eslint-disable-next-line no-console
       console.log('Netopia XML request:', xml);
     }
 
