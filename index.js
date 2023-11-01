@@ -145,7 +145,7 @@ class Netopia {
   /**
    * Set the params for the payment.
    *
-   * @param {{ [key: string]: any }} params The params for the payment.
+   * @param {Record<string, any>} params The params for the payment.
    */
   setParams(params = {}) {
     // Do nothing if params is not an object or is empty
