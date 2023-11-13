@@ -18,10 +18,12 @@ const parser = new xml2js.Parser({
  * @see https://www.npmjs.com/package/mobilpay-card
  */
 class Netopia {
-  constructor({ signature, publicKey, privateKey, sandbox } = {}) {
+  constructor({ signature, publicKey, privateKey, confirmUrl, returnUrl, sandbox } = {}) {
     this.signature = signature || process.env.NETOPIA_SIGNATURE;
     this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
     this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
+    this.confirmUrl = confirmUrl || process.env.NETOPIA_CONFIRM_URL;
+    this.returnUrl = returnUrl || process.env.NETOPIA_RETURN_URL;
     this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
     this.clientData = {
       billing: null,
@@ -165,10 +167,8 @@ class Netopia {
    * @param {number} amount The amount to be charged.
    * @param {string} currency The currency in which to be charged.
    * @param {string} details The details about the transaction.
-   * @param {string} confirmUrl The url which the MobilPay API should call for confirmation.
-   * @param {string} returnUrl The url which the MobilPay API should return after confirmation.
    */
-  setPaymentData({ orderId, amount, currency, details, confirmUrl, returnUrl }) {
+  setPaymentData({ orderId, amount, currency, details }) {
     if (!this.clientData.billing) {
       throw new Error('BILLING_DATA_MISSING');
     }
@@ -190,8 +190,8 @@ class Netopia {
         },
         signature: this.signature,
         url: {
-          return: returnUrl,
-          confirm: confirmUrl,
+          return: this.returnUrl,
+          confirm: this.confirmUrl,
         },
         invoice: {
           $: {
@@ -225,6 +225,23 @@ class Netopia {
   }
 
   buildRequest() {
+    // check if required variables are set
+    if (!this.signature) {
+      throw new Error('SIGNATURE_MISSING');
+    }
+    if (!this.publicKey) {
+      throw new Error('PUBLIC_KEY_MISSING');
+    }
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY_MISSING');
+    }
+    if (!this.confirmUrl) {
+      throw new Error('CONFIRM_URL_MISSING');
+    }
+    if (!this.returnUrl) {
+      throw new Error('RETURN_URL_MISSING');
+    }
+
     if (!this.paymentData) {
       throw new Error('PAYMENT_DATA_MISSING');
     }

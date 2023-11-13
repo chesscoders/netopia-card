@@ -44,12 +44,14 @@ const Netopia = require('netopia-card'); // ES5
 import Netopia from 'netopia-card'; // ES6
 ```
 
-| `constructor` params | Type      | Description                      |
-| -------------------- | --------- | -------------------------------- |
-| signature            | `string`  | Signature provided by Mobilpay   |
-| publicKey            | `string`  | Public key provided by Mobilpay  |
-| privateKey           | `string`  | Private key provided by Mobilpay |
-| sandbox              | `Boolean` | Use for sandbox                  |
+| `constructor` params | Type      | Description                                                    |
+| -------------------- | --------- | -------------------------------------------------------------- |
+| signature            | `string`  | Signature provided by Mobilpay                                 |
+| publicKey            | `string`  | Public key provided by Mobilpay                                |
+| privateKey           | `string`  | Private key provided by Mobilpay                               |
+| confirmUrl           | `string`  | The url which the Netopia API should call for confirmation     |
+| returnUrl            | `string`  | The url which the Netopia API should return after confirmation |
+| sandbox              | `Boolean` | Use for sandbox                                                |
 
 If you saved the signature, the public key, and the private key in the `.env` file, you do not have to provide the constructor with parameters. These will be taken from the environment variables if they exist.
 
@@ -113,8 +115,6 @@ netopia.setParams({ param1: 'string', param2: 1 });
 | amount                  | `number` | The amount to be paid                                          |
 | currency                | `string` | The currency in which the payment will take place              |
 | details                 | `string` | The details of the payment                                     |
-| confirmUrl              | `string` | The url which the Netopia API should call for confirmation     |
-| returnUrl               | `string` | The url which the Netopia API should return after confirmation |
 
 ```javascript
 netopia.setPaymentData({
@@ -122,8 +122,6 @@ netopia.setPaymentData({
   amount: 1,
   currency: 'RON',
   details: 'No details',
-  confirmUrl: 'http://confirm.url',
-  returnUrl: 'http://return.url',
 });
 ```
 
