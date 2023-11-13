@@ -35,6 +35,8 @@ XXXX...XXXX
 NETOPIA_PUBLIC_KEY_B64="-----BEGIN CERTIFICATE-----
 XXXX...XXXX
 -----END CERTIFICATE-----"
+NETOPIA_CONFIRM_URL="http://api.example.com"
+NETOPIA_RETURN_URL="http://example.com"
 ```
 
 Import the library
