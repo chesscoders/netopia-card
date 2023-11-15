@@ -2,6 +2,7 @@ require('dotenv').config();
 const convertKeysToCamelCase = require('./functions/convert-keys-to-camel-case');
 const decrypt = require('./functions/decrypt');
 const encrypt = require('./functions/encrypt');
+const formatNewlines = require('./functions/format-newlines');
 const removeDiacritics = require('./functions/remove-diacritics');
 const xml2js = require('xml2js');
 
@@ -29,16 +30,9 @@ class Netopia {
    * @param {boolean} sandbox The sandbox flag.
    */
   constructor({ signature, publicKey, privateKey, confirmUrl, returnUrl, sandbox } = {}) {
-    const formattedPublicKey =
-      publicKey?.split(String.raw`\n`).join('\n') ||
-      process.env.NETOPIA_PUBLIC_KEY_B64?.split(String.raw`\n`).join('\n');
-    const formattedPrivateKey =
-      privateKey?.split(String.raw`\n`).join('\n') ||
-      process.env.NETOPIA_PRIVATE_KEY_B64?.split(String.raw`\n`).join('\n');
-
     this.signature = signature || process.env.NETOPIA_SIGNATURE;
-    this.publicKey = formattedPublicKey;
-    this.privateKey = formattedPrivateKey;
+    this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
+    this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
     this.confirmUrl = confirmUrl || process.env.NETOPIA_CONFIRM_URL;
     this.returnUrl = returnUrl || process.env.NETOPIA_RETURN_URL;
     this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
@@ -49,6 +43,10 @@ class Netopia {
     this.paymentData = null;
     this.splitPayment = null;
     this.params = null;
+
+    // Format newlines for specific variables
+    this.publicKey = formatNewlines(this.publicKey);
+    this.privateKey = formatNewlines(this.privateKey);
   }
 
   /**
