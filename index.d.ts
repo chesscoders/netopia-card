@@ -2,6 +2,8 @@ type NetopiaOptions = {
   signature?: string;
   publicKey?: string;
   privateKey?: string;
+  confirmUrl?: string;
+  returnUrl?: string;
   sandbox?: boolean;
 };
 
@@ -46,8 +48,6 @@ type PaymentData = {
   amount: number;
   currency: string;
   details: string;
-  confirmUrl: string;
-  returnUrl: string;
 };
 
 type Request = {
