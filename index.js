@@ -18,10 +18,27 @@ const parser = new xml2js.Parser({
  * @see https://www.npmjs.com/package/mobilpay-card
  */
 class Netopia {
+  /**
+   * Constructor
+   *
+   * @param {string} signature The signature.
+   * @param {string} publicKey The public key.
+   * @param {string} privateKey The private key.
+   * @param {string} confirmUrl The confirm url.
+   * @param {string} returnUrl The return url.
+   * @param {boolean} sandbox The sandbox flag.
+   */
   constructor({ signature, publicKey, privateKey, confirmUrl, returnUrl, sandbox } = {}) {
+    const formattedPublicKey =
+      publicKey?.split(String.raw`\n`).join('\n') ||
+      process.env.NETOPIA_PUBLIC_KEY_B64?.split(String.raw`\n`).join('\n');
+    const formattedPrivateKey =
+      privateKey?.split(String.raw`\n`).join('\n') ||
+      process.env.NETOPIA_PRIVATE_KEY_B64?.split(String.raw`\n`).join('\n');
+
     this.signature = signature || process.env.NETOPIA_SIGNATURE;
-    this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
-    this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
+    this.publicKey = formattedPublicKey;
+    this.privateKey = formattedPrivateKey;
     this.confirmUrl = confirmUrl || process.env.NETOPIA_CONFIRM_URL;
     this.returnUrl = returnUrl || process.env.NETOPIA_RETURN_URL;
     this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
