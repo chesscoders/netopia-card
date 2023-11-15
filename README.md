@@ -111,12 +111,12 @@ netopia.setClientBillingData({
 netopia.setParams({ param1: 'string', param2: 1 });
 ```
 
-| `setPaymentData` params | Type     | Description                                                    |
-| ----------------------- | -------- | -------------------------------------------------------------- |
-| orderId                 | `string` | The unique identifier for the payment                          |
-| amount                  | `number` | The amount to be paid                                          |
-| currency                | `string` | The currency in which the payment will take place              |
-| details                 | `string` | The details of the payment                                     |
+| `setPaymentData` params | Type     | Description                                       |
+| ----------------------- | -------- | ------------------------------------------------- |
+| orderId                 | `string` | The unique identifier for the payment             |
+| amount                  | `number` | The amount to be paid                             |
+| currency                | `string` | The currency in which the payment will take place |
+| details                 | `string` | The details of the payment                        |
 
 ```javascript
 netopia.setPaymentData({
