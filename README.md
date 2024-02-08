@@ -73,19 +73,20 @@ const netopia = new Netopia({
 
 After initialization, you need to initialize and set the client and payment details.
 
-| `setClientBillingData` params | Type     | Description               |
-| ----------------------------- | -------- | ------------------------- |
-| firstName                     | `string` | The client's first name   |
-| lastName                      | `string` | The client's last name    |
-| country                       | `string` | The client's country      |
-| county                        | `string` | The client's county       |
-| city                          | `string` | The client's city         |
-| zipCode                       | `string` | The client's zip code     |
-| address                       | `string` | The client's address      |
-| email                         | `string` | The client's email        |
-| phone                         | `string` | The client's phone number |
-| bank                          | `string` | The client's bank         |
-| iban                          | `string` | The client's iban         |
+| `setClientBillingData` params | Type     | Description                                                         |
+| ----------------------------- | -------- | ------------------------------------------------------------------- |
+| billingType                   | `string` | The billing type. Can be `person` or `company`. Default is `person` |
+| firstName                     | `string` | The client's first name                                             |
+| lastName                      | `string` | The client's last name                                              |
+| country                       | `string` | The client's country                                                |
+| county                        | `string` | The client's county                                                 |
+| city                          | `string` | The client's city                                                   |
+| zipCode                       | `string` | The client's zip code                                               |
+| address                       | `string` | The client's address                                                |
+| email                         | `string` | The client's email                                                  |
+| phone                         | `string` | The client's phone number                                           |
+| bank                          | `string` | The client's bank                                                   |
+| iban                          | `string` | The client's iban                                                   |
 
 ```javascript
 netopia.setClientBillingData({

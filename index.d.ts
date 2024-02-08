@@ -9,6 +9,7 @@ type NetopiaOptions = {
 
 type ClientData = {
   billing: {
+    billingType: 'person' | 'company';
     firstName: string;
     lastName: string;
     country: string;
@@ -22,6 +23,7 @@ type ClientData = {
     iban: string;
   };
   shipping: {
+    shippingType: 'person' | 'company';
     firstName: string;
     lastName: string;
     country: string;

@@ -38,7 +38,9 @@ class Netopia {
     this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
     this.clientData = {
       billing: null,
+      billingType: 'person',
       shipping: null,
+      shippingType: 'person',
     };
     this.paymentData = null;
     this.splitPayment = null;
@@ -52,6 +54,7 @@ class Netopia {
   /**
    * Set the client billing information.
    *
+   * @param {string} billingType The billing type. Can be 'person' or 'company'. Default is 'person'.
    * @param {string} firstName The client's first name.
    * @param {string} lastName The client's last name.
    * @param {string} country The client's country.
@@ -65,6 +68,7 @@ class Netopia {
    * @param {string} iban The client's iban.
    */
   setClientBillingData({
+    billingType,
     firstName,
     lastName,
     country,
@@ -77,6 +81,9 @@ class Netopia {
     bank,
     iban,
   }) {
+    if (billingType && ['person', 'company'].includes(billingType)) {
+      this.clientData.billingType = billingType;
+    }
     this.clientData.billing = {
       first_name: firstName,
       last_name: lastName,
@@ -95,6 +102,7 @@ class Netopia {
   /**
    * Set the client shipping information.
    *
+   * @param {string} shippingType The shipping type. Can be 'person' or 'company'. Default is 'person'.
    * @param {string} firstName The client's first name.
    * @param {string} lastName The client's last name.
    * @param {string} country The client's country.
@@ -108,6 +116,7 @@ class Netopia {
    * @param {string} iban The client's iban.
    */
   setClientShippingData({
+    shippingType,
     firstName,
     lastName,
     country,
@@ -120,6 +129,9 @@ class Netopia {
     bank,
     iban,
   }) {
+    if (shippingType && ['person', 'company'].includes(shippingType)) {
+      this.clientData.shippingType = shippingType;
+    }
     this.clientData.shipping = {
       first_name: firstName,
       last_name: lastName,
@@ -217,13 +229,13 @@ class Netopia {
           contact_info: {
             billing: {
               $: {
-                type: 'person',
+                type: this.clientData.billingType,
               },
               ...this.clientData.billing,
             },
             shipping: {
               $: {
-                type: 'person',
+                type: this.clientData.shippingType,
               },
               ...this.clientData.shipping,
             },
