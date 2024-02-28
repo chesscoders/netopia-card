@@ -8,7 +8,7 @@
     "functions"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha ./tests"
   },
   "keywords": [
     "netopia",
@@ -30,7 +30,9 @@
     "xml2js": "^0.5.0"
   },
   "devDependencies": {
+    "chai": "^4.3.10",
     "eslint": "^8.26.0",
+    "mocha": "^10.3.0",
     "prettier": "^2.7.1"
   }
 }
