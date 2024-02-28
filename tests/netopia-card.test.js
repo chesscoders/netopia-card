@@ -24,7 +24,6 @@ test('Netopia card encrypt and decrypt logic', async () => {
     email: '-',
     phone: '-',
   });
-
   netopia.setPaymentData({
     orderId: '1',
     amount: 10,

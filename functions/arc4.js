@@ -109,7 +109,7 @@ Arc4.prototype.change = function (key) {
     this.key = key;
   } else if (typeof key === 'string' || Buffer.isBuffer(key)) {
     this.key = new Array(key.length);
-    var keys = new Buffer(key);
+    var keys = Buffer.from(key);
     for (var i = 0, ii = keys.length; i < ii; ++i) {
       this.key[i] = keys[i];
     }
@@ -130,9 +130,9 @@ Arc4.prototype.change = function (key) {
  * @return {String}
  */
 Arc4.prototype.encodeString = function (str, input_encoding, output_encoding) {
-  var out = new Buffer(str, input_encoding || 'utf8');
+  var out = Buffer.from(str, input_encoding || 'utf8');
   var l = out.length;
-  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || 'hex');
+  return Buffer.from(body(out, this.ksa, Buffer.alloc(l), l)).toString(output_encoding || 'hex');
 };
 
 /**
@@ -145,9 +145,9 @@ Arc4.prototype.encodeString = function (str, input_encoding, output_encoding) {
  * @return {String}
  */
 Arc4.prototype.decodeString = function (str, input_encoding, output_encoding) {
-  var out = new Buffer(str, input_encoding || 'hex');
+  var out = Buffer.from(str, input_encoding || 'hex');
   var l = out.length;
-  return new Buffer(body(out, this.ksa, new Buffer(l), l)).toString(output_encoding || 'utf8');
+  return Buffer.from(body(out, this.ksa, Buffer.alloc(l), l)).toString(output_encoding || 'utf8');
 };
 
 /**
@@ -175,7 +175,7 @@ Arc4.prototype.encodeArray = Arc4.prototype.decodeArray = function (arr) {
  */
 Arc4.prototype.encodeBuffer = Arc4.prototype.decodeBuffer = function (buff) {
   var l = buff.length;
-  return body(buff, this.ksa, new Buffer(l), l);
+  return body(buff, this.ksa, Buffer.alloc(l), l);
 };
 
 /**
