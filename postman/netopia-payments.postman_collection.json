@@ -1,0 +1,132 @@
+{
+	"info": {
+		"_postman_id": "29115535-03a2-4f40-9f2b-4814646efd4e",
+		"name": "netopia-payments",
+		"description": "[https://apidoc.netopia-payments.com/index.html](https://apidoc.netopia-payments.com/index.html)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "18120273"
+	},
+	"item": [
+		{
+			"name": "SystemService",
+			"item": [
+				{
+					"name": "spec",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/spec",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"spec"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "healz",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/healz",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"healz"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "PaymentService",
+			"item": [
+				{
+					"name": "/payment/card/start",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"config\": {\r\n        \"emailTemplate\": \"\",\r\n        \"emailSubject\": \"\",\r\n        \"notifyUrl\": \"https://www.my.domain/my_notify_url\",\r\n        \"redirectUrl\": \"https://www.my.domain/my_redirect_url\",\r\n        \"language\": \"ro\"\r\n    },\r\n    \"payment\": {\r\n        \"options\": {\r\n            \"installments\": 0,\r\n            \"bonus\": 0\r\n        },\r\n        \"instrument\": {\r\n            \"type\": \"card\",\r\n            \"account\": \"9900004810225098\",\r\n            \"expMonth\": 12,\r\n            \"expYear\": 2022,\r\n            \"secretCode\": \"111\",\r\n            \"token\": \"\"\r\n        },\r\n        \"data\": {\r\n            \"property1\": \"string\",\r\n            \"property2\": \"string\"\r\n        }\r\n    },\r\n    \"order\": {\r\n        \"ntpID\": \"\",\r\n        \"posSignature\": \"XXXX-XXXX-XXXX-XXXX-XXXX\",\r\n        \"dateTime\": \"2023-03-19T10:48:17+02:00\",\r\n        \"description\": \"Some order description\",\r\n        \"orderID\": \"Merchant order Id\",\r\n        \"amount\": 1,\r\n        \"currency\": \"RON\",\r\n        \"billing\": {\r\n            \"email\": \"user@example.com\",\r\n            \"phone\": \"+407xxxxxxxx\",\r\n            \"firstName\": \"First\",\r\n            \"lastName\": \"Last\",\r\n            \"city\": \"City\",\r\n            \"country\": 642,\r\n            \"countryName\": \"Country\",\r\n            \"state\": \"State\",\r\n            \"postalCode\": \"Zip\",\r\n            \"details\": \"\"\r\n        },\r\n        \"shipping\": {\r\n            \"email\": \"user@example.com\",\r\n            \"phone\": \"+407xxxxxxxx\",\r\n            \"firstName\": \"First\",\r\n            \"lastName\": \"Last\",\r\n            \"city\": \"City\",\r\n            \"country\": 642,\r\n            \"state\": \"State\",\r\n            \"postalCode\": \"Zip\",\r\n            \"details\": \"\"\r\n        },\r\n        \"products\": [\r\n            {\r\n                \"name\": \"name\",\r\n                \"code\": \"SKU\",\r\n                \"category\": \"category\",\r\n                \"price\": 1,\r\n                \"vat\": 19\r\n            }\r\n        ],\r\n        \"installments\": {\r\n            \"selected\": 0,\r\n            \"available\": [\r\n                0\r\n            ]\r\n        },\r\n        \"data\": {\r\n            \"property1\": \"string\",\r\n            \"property2\": \"string\"\r\n        }\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/payment/card/start",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"payment",
+								"card",
+								"start"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{apiKey}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "Authorization",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "apiKey",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "baseUrl",
+			"value": "https://secure.sandbox.netopia-payments.com",
+			"type": "string"
+		}
+	]
+}
