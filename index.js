@@ -1,51 +1,26 @@
 require('dotenv').config();
 const express = require('express');
 
-/**
- * The Netopia class manages integration with NETOPIA Payments API.
- */
 class Netopia {
-  /**
-   * Creates an instance of the Netopia class.
-   * @param {Object} [options] The options for configuring the Netopia instance.
-   * @param {string} [options.apiKey] The API key for authentication with the Netopia service. If not specified, the value from the `NETOPIA_API_KEY` environment variable is used.
-   * @param {string} [options.apiUrl] The API URL for the Netopia notification callback. It is used to construct the full URL for the Netopia `notifyUrl` callback endpoint. If not specified, the value from the `API_URL` environment variable is used.
-   * @param {string} [options.posSignature] The POS signature. If not specified, the value from the `NETOPIA_SIGNATURE` environment variable is used.
-   * @param {boolean} [options.sandbox=false] If `true`, the sandbox environment is used for testing. Otherwise, the production environment is used.
-   */
   constructor({
     apiKey = process.env.NETOPIA_API_KEY,
     apiUrl = process.env.API_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
     sandbox = false,
   } = {}) {
-    if (!apiKey) {
-      throw new Error('API key is required');
-    }
-    if (!apiUrl) {
-      throw new Error('API URL is required');
-    }
-    if (!posSignature) {
-      throw new Error('POS signature is required');
-    }
-
     this.apiKey = apiKey;
     this.apiUrl = apiUrl;
-    this.posSignature = posSignature;
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
       : 'https://secure.mobilpay.ro/pay';
+    this.posSignature = posSignature;
   }
 
-  /**
-   * Sends an HTTP request to the Netopia service.
-   * @param {string} url The URL to which the request is made.
-   * @param {'POST'} method The HTTP method used for the request.
-   * @param {Object} data The request body for POST methods.
-   * @returns {Promise<Object>} The response from the server as a JSON object.
-   * @throws {Error} Throws an error if the request does not complete successfully.
-   */
   async sendRequest(url, method, data) {
+    if (!this.apiKey) {
+      throw new Error('API key is required');
+    }
+
     const response = await fetch(url, {
       method: method,
       headers: {
@@ -58,35 +33,22 @@ class Netopia {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+
     return await response.json();
   }
 
-  /**
-   * Initiates a payment through Netopia.
-   * @param {StartRequest} requestData The data needed to initiate the payment, which includes:
-   * - `config`: Configuration options for the payment.
-   *    - `emailTemplate` (optional): The email template to use.
-   *    - `emailSubject` (optional): The subject line for the email.
-   *    - `cancelUrl` (optional): The URL to redirect to if the payment is cancelled.
-   *    - `redirectUrl`: The URL to redirect to after payment completion.
-   *    - `language`: The language code for the payment interface.
-   * - `payment`: Payment details.
-   *    - `options`: Payment options, such as installments and bonus points.
-   *    - `instrument`: The payment instrument, e.g., card details.
-   *    - `data`: Additional attributes/data for the payment request.
-   * - `order`: Order details.
-   *    - `billing`: Billing information.
-   *    - `shipping` (optional): Shipping information, if different from billing.
-   *    - `products` (optional): List of products included in the order.
-   *    - `installments` (optional): Installment options for the payment.
-   *    - `data` (optional): Additional attributes/data for the order.
-   * @returns {Promise<Object>} The response from Netopia with details about the payment.
-   * @throws {Error} Throws an error if the payment initiation request fails.
-   */
   async startPayment(requestData) {
+    if (!this.apiUrl) {
+      throw new Error('API URL is required');
+    }
+    if (!this.posSignature) {
+      throw new Error('POS signature is required');
+    }
+
     requestData.config.notifyUrl = this.apiUrl + '/notify';
     requestData.order.posSignature = this.posSignature;
     const url = `${this.baseUrl}/payment/card/start`;
+
     try {
       const response = await this.sendRequest(url, 'POST', requestData);
       return response;
@@ -96,12 +58,6 @@ class Netopia {
     }
   }
 
-  /**
-   * Middleware for parsing raw text body requests.
-   * @param {express.Request} req The Express request object.
-   * @param {express.Response} _res The Express response object.
-   * @param {Function} next The callback function to pass control to the next middleware.
-   */
   rawTextBodyParser(req, _res, next) {
     if (!req.headers['content-type'] || req.headers['content-type'] === 'text/plain') {
       let data = '';
@@ -117,13 +73,6 @@ class Netopia {
     }
   }
 
-  /**
-   * Creates an Express route that handles payment notifications from Netopia.
-   * @param {NotificationCallback} callback The function to be called with the payment notification data. The callback receives a `NotifyRequest` object:
-   *    - `payment`: Payment notification details.
-   *    - `order`: Order details from the notification.
-   * @returns {express.Router} The Express router configured for the notification route.
-   */
   createNotifyRoute(callback) {
     const router = express.Router();
 
