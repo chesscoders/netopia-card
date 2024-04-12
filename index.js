@@ -1,370 +1,143 @@
 require('dotenv').config();
-const convertKeysToCamelCase = require('./functions/convert-keys-to-camel-case');
-const decrypt = require('./functions/decrypt');
-const encrypt = require('./functions/encrypt');
-const formatNewlines = require('./functions/format-newlines');
-const removeDiacritics = require('./functions/remove-diacritics');
-const xml2js = require('xml2js');
-
-const builder = new xml2js.Builder({
-  cdata: true,
-});
-const parser = new xml2js.Parser({
-  explicitArray: false,
-});
+const express = require('express');
 
 /**
- * Netopia mobilPay class
- * inspired by mobilpay-card NPM package
- * @see https://www.npmjs.com/package/mobilpay-card
+ * The Netopia class manages integration with NETOPIA Payments API.
  */
 class Netopia {
   /**
-   * Constructor
-   *
-   * @param {string} signature The signature.
-   * @param {string} publicKey The public key.
-   * @param {string} privateKey The private key.
-   * @param {string} confirmUrl The confirm url.
-   * @param {string} returnUrl The return url.
-   * @param {boolean} sandbox The sandbox flag.
+   * Creates an instance of the Netopia class.
+   * @param {Object} [options] The options for configuring the Netopia instance.
+   * @param {string} [options.apiKey] The API key for authentication with the Netopia service. If not specified, the value from the `API_KEY` environment variable is used.
+   * @param {string} [options.apiUrl] The API URL for the Netopia notification callback. It is used to construct the full URL for the Netopia `notifyUrl` callback endpoint. If not specified, the value from the `API_URL` environment variable is used.
+   * @param {string} [options.posSignature] The POS signature. If not specified, the value from the `POS_SIGNATURE` environment variable is used.
+   * @param {boolean} [options.sandbox=false] If `true`, the sandbox environment is used for testing. Otherwise, the production environment is used.
    */
-  constructor({ signature, publicKey, privateKey, confirmUrl, returnUrl, sandbox } = {}) {
-    this.signature = signature || process.env.NETOPIA_SIGNATURE;
-    this.publicKey = publicKey || process.env.NETOPIA_PUBLIC_KEY_B64;
-    this.privateKey = privateKey || process.env.NETOPIA_PRIVATE_KEY_B64;
-    this.confirmUrl = confirmUrl || process.env.NETOPIA_CONFIRM_URL;
-    this.returnUrl = returnUrl || process.env.NETOPIA_RETURN_URL;
-    this.sandbox = sandbox || process.env.NODE_ENV !== 'production';
-    this.clientData = {
-      billing: null,
-      billingType: 'person',
-      shipping: null,
-      shippingType: 'person',
-    };
-    this.paymentData = null;
-    this.splitPayment = null;
-    this.params = null;
-
-    // Format newlines for specific variables
-    this.publicKey = formatNewlines(this.publicKey);
-    this.privateKey = formatNewlines(this.privateKey);
-  }
-
-  /**
-   * Set the client billing information.
-   *
-   * @param {string} billingType The billing type. Can be 'person' or 'company'. Default is 'person'.
-   * @param {string} firstName The client's first name.
-   * @param {string} lastName The client's last name.
-   * @param {string} country The client's country.
-   * @param {string} county The client's county.
-   * @param {string} city The client's city.
-   * @param {string} zipCode The client's zip code.
-   * @param {string} address The client's address.
-   * @param {string} email The client's email.
-   * @param {string} phone The client's phone number.
-   * @param {string} bank The client's bank.
-   * @param {string} iban The client's iban.
-   */
-  setClientBillingData({
-    billingType,
-    firstName,
-    lastName,
-    country,
-    county,
-    city,
-    zipCode,
-    address,
-    email,
-    phone,
-    bank,
-    iban,
-  }) {
-    if (billingType && ['person', 'company'].includes(billingType)) {
-      this.clientData.billingType = billingType;
+  constructor({
+    apiKey = process.env.API_KEY,
+    apiUrl = process.env.API_URL,
+    posSignature = process.env.POS_SIGNATURE,
+    sandbox = false,
+  } = {}) {
+    if (!apiUrl) {
+      throw new Error('API URL is required');
     }
-    this.clientData.billing = {
-      first_name: firstName,
-      last_name: lastName,
-      country: country,
-      county: county,
-      city: city,
-      zip_code: zipCode,
-      address: address,
-      email: email,
-      mobile_phone: phone,
-      bank: bank,
-      iban: iban,
-    };
+
+    this.apiKey = apiKey;
+    this.apiUrl = apiUrl;
+    this.posSignature = posSignature;
+    this.baseUrl = sandbox
+      ? 'https://secure.sandbox.netopia-payments.com'
+      : 'https://secure.mobilpay.ro/pay';
   }
 
   /**
-   * Set the client shipping information.
-   *
-   * @param {string} shippingType The shipping type. Can be 'person' or 'company'. Default is 'person'.
-   * @param {string} firstName The client's first name.
-   * @param {string} lastName The client's last name.
-   * @param {string} country The client's country.
-   * @param {string} county The client's county.
-   * @param {string} city The client's city.
-   * @param {string} zipCode The client's zip code.
-   * @param {string} address The client's address.
-   * @param {string} email The client's email.
-   * @param {string} phone The client's phone number.
-   * @param {string} bank The client's bank.
-   * @param {string} iban The client's iban.
+   * Sends an HTTP request to the Netopia service.
+   * @param {string} url The URL to which the request is made.
+   * @param {'POST'} method The HTTP method used for the request.
+   * @param {Object} data The request body for POST methods.
+   * @returns {Promise<Object>} The response from the server as a JSON object.
+   * @throws {Error} Throws an error if the request does not complete successfully.
    */
-  setClientShippingData({
-    shippingType,
-    firstName,
-    lastName,
-    country,
-    county,
-    city,
-    zipCode,
-    address,
-    email,
-    phone,
-    bank,
-    iban,
-  }) {
-    if (shippingType && ['person', 'company'].includes(shippingType)) {
-      this.clientData.shippingType = shippingType;
-    }
-    this.clientData.shipping = {
-      first_name: firstName,
-      last_name: lastName,
-      country: country,
-      county: county,
-      city: city,
-      zip_code: zipCode,
-      address: address,
-      email: email,
-      mobile_phone: phone,
-      bank: bank,
-      iban: iban,
-    };
-  }
-
-  /**
-   * Set the split payment information.
-   *
-   * @param {string} firstDestinationId The sac id (signature) of the first recipient.
-   * @param {number} firstDestinationAmount The amount for the first recipient.
-   * @param {string} secondDestinationId The sac id (signature) of the second recipient.
-   * @param {number} secondDestinationAmount The amount for the second recipient.
-   */
-  setSplitPayment({
-    firstDestinationId,
-    firstDestinationAmount,
-    secondDestinationId,
-    secondDestinationAmount,
-  }) {
-    this.splitPayment = {
-      split: {
-        destinations: [
-          { id: firstDestinationId, amount: firstDestinationAmount },
-          { id: secondDestinationId, amount: secondDestinationAmount },
-        ],
+  async sendRequest(url, method, data) {
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
       },
-    };
-  }
-
-  /**
-   * Set the params for the payment.
-   *
-   * @param {Record<string, any>} params The params for the payment.
-   */
-  setParams(params = {}) {
-    // Do nothing if params is not an object or is empty
-    if (typeof params !== 'object' || Object.keys(params).length === 0) {
-      return;
-    }
-    const paramsArray = Object.keys(params).map((key) => {
-      return { name: key, value: params[key] };
+      body: JSON.stringify(data),
     });
-    this.params = { param: paramsArray };
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
   }
 
   /**
-   * Set the client billing information.
-   *
-   * @param {string} orderId The id of the order.
-   * @param {number} amount The amount to be charged.
-   * @param {string} currency The currency in which to be charged.
-   * @param {string} details The details about the transaction.
+   * Initiates a payment through Netopia.
+   * @param {StartRequest} requestData The data needed to initiate the payment, which includes:
+   * - `config`: Configuration options for the payment.
+   *    - `emailTemplate` (optional): The email template to use.
+   *    - `emailSubject` (optional): The subject line for the email.
+   *    - `cancelUrl` (optional): The URL to redirect to if the payment is cancelled.
+   *    - `redirectUrl`: The URL to redirect to after payment completion.
+   *    - `language`: The language code for the payment interface.
+   * - `payment`: Payment details.
+   *    - `options`: Payment options, such as installments and bonus points.
+   *    - `instrument`: The payment instrument, e.g., card details.
+   *    - `data`: Additional attributes/data for the payment request.
+   * - `order`: Order details.
+   *    - `billing`: Billing information.
+   *    - `shipping` (optional): Shipping information, if different from billing.
+   *    - `products` (optional): List of products included in the order.
+   *    - `installments` (optional): Installment options for the payment.
+   *    - `data` (optional): Additional attributes/data for the order.
+   * @returns {Promise<Object>} The response from Netopia with details about the payment.
+   * @throws {Error} Throws an error if the payment initiation request fails.
    */
-  setPaymentData({ orderId, amount, currency, details }) {
-    if (!this.clientData.billing) {
-      throw new Error('BILLING_DATA_MISSING');
+  async startPayment(requestData) {
+    requestData.config.notifyUrl = this.apiUrl + '/notify';
+    const url = `${this.baseUrl}/payment/card/start`;
+    try {
+      const response = await this.sendRequest(url, 'POST', requestData);
+      return response;
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      throw error;
     }
-    if (!this.clientData.shipping) {
-      this.setClientShippingData({
-        ...convertKeysToCamelCase(this.clientData.billing),
-        phone: this.clientData.billing.mobile_phone,
+  }
+
+  /**
+   * Middleware for parsing raw text body requests.
+   * @param {express.Request} req The Express request object.
+   * @param {express.Response} _res The Express response object.
+   * @param {Function} next The callback function to pass control to the next middleware.
+   */
+  rawTextBodyParser(req, _res, next) {
+    if (!req.headers['content-type'] || req.headers['content-type'] === 'text/plain') {
+      let data = '';
+      req.on('data', (chunk) => {
+        data += chunk;
       });
+      req.on('end', () => {
+        req.body = data;
+        next();
+      });
+    } else {
+      next();
     }
-    if (typeof this.splitPayment === 'undefined') {
-      this.splitPayment = null;
-    }
-    const paymentData = {
-      order: {
-        $: {
-          id: orderId,
-          timestamp: new Date().getTime(),
-          type: 'card',
-        },
-        signature: this.signature,
-        url: {
-          return: this.returnUrl,
-          confirm: this.confirmUrl,
-        },
-        invoice: {
-          $: {
-            currency: currency.toString().toUpperCase(),
-            amount: amount,
-          },
-          details: details,
-          contact_info: {
-            billing: {
-              $: {
-                type: this.clientData.billingType,
-              },
-              ...this.clientData.billing,
-            },
-            shipping: {
-              $: {
-                type: this.clientData.shippingType,
-              },
-              ...this.clientData.shipping,
-            },
-          },
-        },
-        ...this.splitPayment,
-      },
-    };
-    if (this.params) {
-      paymentData.order.params = this.params;
-    }
-    // IMPORTANT: Netopia does not allow diacritics in the XML
-    this.paymentData = removeDiacritics(paymentData);
-  }
-
-  buildRequest() {
-    // check if required variables are set
-    if (!this.signature) {
-      throw new Error('SIGNATURE_MISSING');
-    }
-    if (!this.publicKey) {
-      throw new Error('PUBLIC_KEY_MISSING');
-    }
-    if (!this.privateKey) {
-      throw new Error('PRIVATE_KEY_MISSING');
-    }
-    if (!this.confirmUrl) {
-      throw new Error('CONFIRM_URL_MISSING');
-    }
-    if (!this.returnUrl) {
-      throw new Error('RETURN_URL_MISSING');
-    }
-
-    if (!this.paymentData) {
-      throw new Error('PAYMENT_DATA_MISSING');
-    }
-    let xml = null;
-    let request = null;
-    try {
-      xml = builder.buildObject(this.paymentData);
-    } catch (e) {
-      throw new Error('XML_BUILDER_ERROR');
-    }
-
-    // Show the XML request in the console if the environment variable is set
-    if (process.env.SHOW_NETOPIA_DEBUG === 'yes') {
-      // eslint-disable-next-line no-console
-      console.log('Netopia XML request:', xml);
-    }
-
-    try {
-      request = encrypt(this.publicKey, xml);
-    } catch (e) {
-      throw new Error('RC4_BUILDER_ERROR');
-    }
-
-    return {
-      url: this.sandbox ? 'http://sandboxsecure.mobilpay.ro' : 'https://secure.mobilpay.ro',
-      env_key: request.envKey,
-      data: request.envData,
-    };
   }
 
   /**
-   * Get the payment confirmation
-   *
-   * @param {string} env_key The env_key.
-   * @param {string} data The data.
+   * Creates an Express route that handles payment notifications from Netopia.
+   * @param {NotificationCallback} callback The function to be called with the payment notification data. The callback receives a `NotifyRequest` object:
+   *    - `payment`: Payment notification details.
+   *    - `order`: Order details from the notification.
+   * @returns {express.Router} The Express router configured for the notification route.
    */
-  confirmPayment(env_key, data) {
-    const privateKey = this.privateKey;
-    return new Promise(function (resolve, reject) {
-      parser.parseString(decrypt(privateKey, env_key, data), function (err, result) {
-        if (err) {
-          reject(err);
+  createNotifyRoute(callback) {
+    const router = express.Router();
+
+    router.post('/notify', this.rawTextBodyParser, (req, res) => {
+      try {
+        const { order, payment } = JSON.parse(req.body);
+        if (!order || !payment) {
+          throw new Error('Invalid request body');
         }
-        resolve(result);
-      });
-    });
-  }
 
-  /**
-   * Validate a payment
-   *
-   * @param {string} env_key The env_key from the mobilPay request body
-   * @param {string} data The data from the mobilPay request body
-   */
-  async validatePayment(env_key, data) {
-    const confirmedPayment = await this.confirmPayment(env_key, data);
-    return new Promise(function (resolve, reject) {
-      if (confirmedPayment.errorType) {
-        reject(confirmedPayment.errorMessage);
+        callback({ order, payment });
+
+        res.header('Content-Type', 'application/json');
+        res.status(200).json({ errorCode: 0 });
+      } catch (error) {
+        console.error('Error', error.message);
+        res.status(400).json({ errorCode: 1 });
       }
-      const order = confirmedPayment.order;
-      const mobilpayAction = order.mobilpay.action;
-      const errorObj = order.mobilpay.error;
-      let errorMessage = errorObj._;
-      let errorCode = errorObj.$.code;
-
-      if (parseInt(errorCode) !== 0) {
-        resolve({
-          order,
-          action: null,
-          errorMessage: errorMessage,
-          error: errorObj,
-          res: {
-            set: {
-              key: 'Content-Type',
-              value: 'application/xml',
-            },
-            send: `<?xml version="1.0" encoding="utf-8" ?><crc error_code="${errorCode}">${errorMessage}</crc>`,
-          },
-        });
-      }
-
-      resolve({
-        order,
-        action: mobilpayAction,
-        errorMessage: null,
-        error: null,
-        res: {
-          set: {
-            key: 'Content-Type',
-            value: 'application/xml',
-          },
-          send: `<?xml version="1.0" encoding="utf-8" ?><crc>${errorMessage}</crc>`,
-        },
-      });
     });
+
+    return router;
   }
 }
 
