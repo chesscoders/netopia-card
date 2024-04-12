@@ -52,14 +52,100 @@ const netopia = new Netopia({
 Initiate a payment by calling the `startPayment` method with the necessary payment details:
 
 ```javascript
-const paymentDetails = {
-  // Define your payment details here
+const requestData = {
+  config: {
+    emailTemplate: '',
+    emailSubject: '',
+    language: 'ro',
+  },
+  payment: {
+    options: {
+      installments: 0,
+      bonus: 0,
+    },
+    instrument: {
+      type: 'card',
+      account: '9900009184214768',
+      expMonth: 12,
+      expYear: 2022,
+      secretCode: '111',
+      token: '',
+    },
+    data: {
+      BROWSER_USER_AGENT:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36',
+      BROWSER_TZ: 'Europe/Bucharest',
+      BROWSER_COLOR_DEPTH: '32',
+      BROWSER_JAVA_ENABLED: 'true',
+      BROWSER_LANGUAGE: 'en-US,en;q=0.9',
+      BROWSER_TZ_OFFSET: '0',
+      BROWSER_SCREEN_WIDTH: '1200',
+      BROWSER_SCREEN_HEIGHT: '1400',
+      BROWSER_PLUGINS: 'Chrome PDF Plugin, Chrome PDF Viewer, Native Client',
+      MOBILE: 'false',
+      SCREEN_POINT: 'false',
+      OS: 'macOS',
+      OS_VERSION: '10.15.7 (32-bit)',
+      IP_ADDRESS: '127.0.0.1',
+    },
+  },
+  order: {
+    ntpID: '',
+    posSignature: 'XXXX-XXXX-XXXX-XXXX-XXXX',
+    dateTime: '2023-08-24T14:15:22Z',
+    description: 'Some order description',
+    orderID: 'Merchant order Id',
+    amount: 1,
+    currency: 'RON',
+    billing: {
+      email: 'user@example.com',
+      phone: '+407xxxxxxxx',
+      firstName: 'First',
+      lastName: 'Last',
+      city: 'City',
+      country: 642,
+      countryName: 'Romania',
+      state: 'State',
+      postalCode: 'Zip',
+      details: '',
+    },
+    shipping: {
+      email: 'user@example.com',
+      phone: '+407xxxxxxxx',
+      firstName: 'First',
+      lastName: 'Last',
+      city: 'City',
+      country: 642,
+      state: 'State',
+      postalCode: 'Zip',
+      details: '',
+    },
+    products: [
+      {
+        name: 'string',
+        code: 'SKU',
+        category: 'category',
+        price: 1,
+        vat: 19,
+      },
+    ],
+    installments: {
+      selected: 0,
+      available: [0],
+    },
+    data: {
+      property1: 'string',
+      property2: 'string',
+    },
+  },
 };
 
-netopia
-  .startPayment(paymentDetails)
-  .then((response) => console.log(response))
-  .catch((error) => console.error(error));
+try {
+  const response = await netopia.startPayment(requestData);
+  console.log(response);
+} catch (error) {
+  console.error(error);
+}
 ```
 
 Handle payment notifications by creating a notification route:
@@ -69,8 +155,23 @@ const express = require('express');
 const app = express();
 
 app.use(
-  netopia.createNotifyRoute((notification) => {
-    console.log('Payment notification received:', notification);
+  netopia.createNotifyRoute(({ payment, order }) => {
+    console.log('Order ID:', order?.orderID);
+
+    switch (payment?.status) {
+      case 3:
+        console.log('Payment was successful');
+        break;
+      case 5:
+        console.log('Payment was confirmed');
+        break;
+      case 12:
+        console.log('Payment was rejected');
+        break;
+      default:
+        console.log('Payment status unknown');
+        break;
+    }
   })
 );
 
