@@ -45,7 +45,7 @@ class Netopia {
       throw new Error('POS signature is required');
     }
 
-    requestData.config.notifyUrl = new URL('/notify', this.apiUrl).href;
+    requestData.config.notifyUrl = new URL('notify', this.apiUrl).href;
     requestData.order.posSignature = this.posSignature;
     const url = `${this.baseUrl}/payment/card/start`;
 
