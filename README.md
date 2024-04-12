@@ -25,9 +25,9 @@ yarn add netopia-card
 Before using Netopia Card, set your environment variables based on the credentials provided by Netopia for your sales point.
 
 ```sh
-NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
-API_KEY="Your_API_Key_Here"
 API_URL="https://api.yourdomain.com/v1/"
+NETOPIA_API_KEY="Your_API_Key_Here"
+NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
 ```
 
 These credentials can be found in the [NETOPIA Payments admin](https://admin.netopia-payments.com/) > Profile > Security.

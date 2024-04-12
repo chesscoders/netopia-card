@@ -8,15 +8,15 @@ class Netopia {
   /**
    * Creates an instance of the Netopia class.
    * @param {Object} [options] The options for configuring the Netopia instance.
-   * @param {string} [options.apiKey] The API key for authentication with the Netopia service. If not specified, the value from the `API_KEY` environment variable is used.
+   * @param {string} [options.apiKey] The API key for authentication with the Netopia service. If not specified, the value from the `NETOPIA_API_KEY` environment variable is used.
    * @param {string} [options.apiUrl] The API URL for the Netopia notification callback. It is used to construct the full URL for the Netopia `notifyUrl` callback endpoint. If not specified, the value from the `API_URL` environment variable is used.
-   * @param {string} [options.posSignature] The POS signature. If not specified, the value from the `POS_SIGNATURE` environment variable is used.
+   * @param {string} [options.posSignature] The POS signature. If not specified, the value from the `NETOPIA_SIGNATURE` environment variable is used.
    * @param {boolean} [options.sandbox=false] If `true`, the sandbox environment is used for testing. Otherwise, the production environment is used.
    */
   constructor({
-    apiKey = process.env.API_KEY,
+    apiKey = process.env.NETOPIA_API_KEY,
     apiUrl = process.env.API_URL,
-    posSignature = process.env.POS_SIGNATURE,
+    posSignature = process.env.NETOPIA_SIGNATURE,
     sandbox = false,
   } = {}) {
     if (!apiUrl) {
