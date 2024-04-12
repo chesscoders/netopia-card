@@ -19,8 +19,14 @@ class Netopia {
     posSignature = process.env.NETOPIA_SIGNATURE,
     sandbox = false,
   } = {}) {
+    if (!apiKey) {
+      throw new Error('API key is required');
+    }
     if (!apiUrl) {
       throw new Error('API URL is required');
+    }
+    if (!posSignature) {
+      throw new Error('POS signature is required');
     }
 
     this.apiKey = apiKey;
@@ -79,6 +85,7 @@ class Netopia {
    */
   async startPayment(requestData) {
     requestData.config.notifyUrl = this.apiUrl + '/notify';
+    requestData.order.posSignature = this.posSignature;
     const url = `${this.baseUrl}/payment/card/start`;
     try {
       const response = await this.sendRequest(url, 'POST', requestData);
