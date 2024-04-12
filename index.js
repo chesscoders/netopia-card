@@ -25,7 +25,7 @@ class Netopia {
       method: method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: this.apiKey,
       },
       body: JSON.stringify(data),
     });
@@ -45,7 +45,7 @@ class Netopia {
       throw new Error('POS signature is required');
     }
 
-    requestData.config.notifyUrl = this.apiUrl + '/notify';
+    requestData.config.notifyUrl = new URL('/notify', this.apiUrl).href;
     requestData.order.posSignature = this.posSignature;
     const url = `${this.baseUrl}/payment/card/start`;
 
