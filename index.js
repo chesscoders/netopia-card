@@ -1,4 +1,5 @@
 require('dotenv').config();
+const axios = require('axios');
 
 class Netopia {
   constructor({
