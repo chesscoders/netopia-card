@@ -1,5 +1,4 @@
 require('dotenv').config();
-const express = require('express');
 
 class Netopia {
   constructor({
@@ -21,20 +20,31 @@ class Netopia {
       throw new Error('API key is required');
     }
 
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: this.apiKey,
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await axios({
+        url: url,
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.apiKey,
+        },
+        data: data,
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        throw new Error(error.response.data);
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new Error('No response received');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        throw new Error(error.message);
+      }
     }
-
-    return await response.json();
   }
 
   async startPayment(requestData) {
@@ -74,26 +84,26 @@ class Netopia {
   }
 
   createNotifyRoute(callback) {
-    const router = express.Router();
+    return [
+      '/notify',
+      this.rawTextBodyParser,
+      (req, res) => {
+        try {
+          const { order, payment } = JSON.parse(req.body);
+          if (!order || !payment) {
+            throw new Error('Invalid request body');
+          }
 
-    router.post('/notify', this.rawTextBodyParser, (req, res) => {
-      try {
-        const { order, payment } = JSON.parse(req.body);
-        if (!order || !payment) {
-          throw new Error('Invalid request body');
+          callback({ order, payment });
+
+          res.header('Content-Type', 'application/json');
+          res.status(200).json({ errorCode: 0 });
+        } catch (error) {
+          console.error('Error', error.message);
+          res.status(400).json({ errorCode: 1 });
         }
-
-        callback({ order, payment });
-
-        res.header('Content-Type', 'application/json');
-        res.status(200).json({ errorCode: 0 });
-      } catch (error) {
-        console.error('Error', error.message);
-        res.status(400).json({ errorCode: 1 });
-      }
-    });
-
-    return router;
+      },
+    ];
   }
 }
 

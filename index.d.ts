@@ -1,5 +1,3 @@
-import { Router } from 'express';
-
 /**
  * Represents a request to start a payment.
  */
@@ -93,7 +91,9 @@ type Address = {
   details: string;
 };
 
-// ShippingAddress has the same structure as Address.
+/**
+ * Represents a shipping address. It is the same as an address.
+ */
 type ShippingAddress = Address;
 
 /**
@@ -169,6 +169,51 @@ type PaymentBinding = {
 type NotificationCallback = (payload: NotifyRequest) => void;
 
 /**
+ * Defines the type for an Express request object.
+ */
+interface Request {
+  body: any;
+  query: { [key: string]: string | undefined };
+  params: { [key: string]: string };
+  headers: { [key: string]: string | undefined };
+}
+
+/**
+ * Defines the type for an Express response object.
+ */
+interface Response {
+  send: (body?: any) => Response;
+  json: (body: any) => Response;
+  status: (statusCode: number) => Response;
+  header: (name: string, value?: string) => Response;
+}
+
+/**
+ * Defines the type for the next function in Express middleware.
+ */
+type NextFunction = (err?: any) => void;
+
+/**
+ * Defines the type for middleware functions in Express. Middleware functions can perform the following tasks:
+ * - Execute any code.
+ * - Make changes to the request and the response objects.
+ * - End the request-response cycle.
+ * - Call the next middleware in the stack.
+ * @param req The HTTP request object.
+ * @param res The HTTP response object.
+ * @param next A callback to signal Express to move to the next middleware function in the stack.
+ */
+type Middleware = (req: Request, res: Response, next: NextFunction) => void;
+
+/**
+ * Defines the type for request handler functions in Express. Request handlers are similar to middleware but are typically
+ * used to terminate the request-response cycle by sending a response back to the client.
+ * @param req The HTTP request object.
+ * @param res The HTTP response object.
+ */
+type RequestHandler = (req: Request, res: Response) => void | Promise<void>;
+
+/**
  * Represents the Netopia payment integration class.
  */
 declare class Netopia {
@@ -191,11 +236,17 @@ declare class Netopia {
   startPayment(requestData: StartRequest): Promise<any>;
 
   /**
-   * Creates an Express route for handling payment notifications.
-   * @param callback The function to call with the payment notification data.
-   * @returns An Express Router configured for the notification route.
+   * Creates an Express route array for handling payment notifications.
+   * This method configures a route to receive payment notifications, parse the request body,
+   * validate it, and then invoke a callback function with the parsed data. If the request is invalid,
+   * it responds with an error code. Otherwise, it calls the provided callback with the notification data
+   * and responds to the requestor to acknowledge the notification.
+   * @param callback The function to call with the parsed notification data.
+   * It receives a single parameter of type `NotifyRequest` which contains the notification details.
+   * @returns An array containing the route path, middleware for parsing the raw text body,
+   * and the route handler function configured for the `/notify` endpoint.
    */
-  createNotifyRoute(callback: NotificationCallback): Router;
+  createNotifyRoute(callback: NotificationCallback): [string, Middleware, RequestHandler];
 }
 
 export = Netopia;

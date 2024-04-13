@@ -155,7 +155,7 @@ const express = require('express');
 const app = express();
 
 app.use(
-  netopia.createNotifyRoute(({ payment, order }) => {
+  ...netopia.createNotifyRoute(({ payment, order }) => {
     console.log('Order ID:', order?.orderID);
 
     switch (payment?.status) {
