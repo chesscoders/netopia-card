@@ -1,5 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
+const { decrypt, encrypt, generateKeys, saveKeysInEnvironment } = require('./functions');
 
 class Netopia {
   constructor({
@@ -37,7 +38,7 @@ class Netopia {
       if (error.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
-        throw new Error(error.response.data);
+        throw new Error(error.response.data.message);
       } else if (error.request) {
         // The request was made but no response was received
         throw new Error('No response received');
@@ -64,7 +65,7 @@ class Netopia {
       const response = await this.sendRequest(url, 'POST', requestData);
       return response;
     } catch (error) {
-      console.error('Error initiating payment:', error);
+      console.error('Error initiating payment:', error.message);
       throw error;
     }
   }
@@ -108,4 +109,36 @@ class Netopia {
   }
 }
 
-module.exports = Netopia;
+function decryptRequestBody(req, res, next) {
+  try {
+    const { envKey, envData } = req.body;
+    if (!envKey || !envData) {
+      throw new Error('Invalid request body');
+    }
+
+    const privateKey = process.env.PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error('Private key is required');
+    }
+
+    const decryptedData = decrypt(privateKey, envKey, envData);
+    if (!decryptedData) {
+      throw new Error('Failed to decrypt data');
+    }
+
+    req.body = JSON.parse(decryptedData);
+    next();
+  } catch (error) {
+    console.error('Error decrypting request body:', error);
+    res.status(400).json({ errorCode: 1 });
+  }
+}
+
+module.exports = {
+  Netopia,
+  generateKeys,
+  saveKeysInEnvironment,
+  encrypt,
+  decrypt,
+  decryptRequestBody,
+};

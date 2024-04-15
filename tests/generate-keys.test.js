@@ -1,7 +1,7 @@
 const { generateKeys, saveKeysInEnvironment } = require('../functions');
 
 describe('Generates a key pair with 2048 bits', () => {
-  it('should generate a key pair with 2048 bits', async () => {
+  test('should generate a key pair with 2048 bits', async () => {
     // Arrange
     const options = {
       serialNumber: '01',
@@ -26,7 +26,7 @@ describe('Generates a key pair with 2048 bits', () => {
     expect(result.publicKey.length).toBeGreaterThan(0);
   }, 10000);
 
-  it('should save the keys in the environment', async () => {
+  test('should save the keys in the environment', async () => {
     // Arrange
     const options = {
       serialNumber: '01',
@@ -40,7 +40,7 @@ describe('Generates a key pair with 2048 bits', () => {
         { shortName: 'OU', value: 'Test' },
       ],
     };
-    const file = '.env.test';
+    const file = '.env.test.local';
 
     // Act
     await saveKeysInEnvironment(options, file);

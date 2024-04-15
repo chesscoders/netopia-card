@@ -216,7 +216,7 @@ type RequestHandler = (req: Request, res: Response) => void | Promise<void>;
 /**
  * Represents the Netopia payment integration class.
  */
-declare class Netopia {
+export declare class Netopia {
   /**
    * Constructs a new instance of the Netopia class.
    * @param config Configuration options for the Netopia instance.
@@ -249,4 +249,52 @@ declare class Netopia {
   createNotifyRoute(callback: NotificationCallback): [string, Middleware, RequestHandler];
 }
 
-export = Netopia;
+/**
+ * Asynchronous function that generates a self-signed certificate and its corresponding private key.
+ * @param options Options for certificate generation.
+ * @returns A promise that resolves with the generated certificate and private key.
+ */
+export function generateKeys(options: {
+  serialNumber: string;
+  attrs: { name: string; value: string }[];
+}): Promise<{ privateKey: string; publicKey: string }>;
+
+/**
+ * Saves generated private and public keys into environment variables and appends them to a .env file.
+ * This function handles the key generation, newline formatting, and saving process.
+ * @param options Options for key generation.
+ * @param file The path to the .env file where the keys will be saved.
+ * @returns A promise that resolves when the keys have been saved.
+ */
+export function saveKeysInEnvironment(
+  options: { serialNumber: string; attrs: { name: string; value: string }[] },
+  file: string
+): Promise<void>;
+
+/**
+ * Encrypts data using an RSA public key for the AES key and IV, and AES-CBC for the actual data encryption.
+ * The function generates a random AES key and IV, encrypts the data, and then encrypts the AES key and IV using the RSA public key.
+ * @param certificatePem The PEM-encoded certificate containing the RSA public key.
+ * @param data The plaintext data to encrypt.
+ * @returns An object containing base64-encoded strings of the encrypted key (envKey) and the encrypted data (envData).
+ */
+export function encrypt(certificatePem: string, data: string): { envKey: string; envData: string };
+
+/**
+ * Decrypts data that was encrypted with an RSA public key using AES-CBC encryption.
+ * The function uses the private key to first decrypt the AES key and IV, and then uses them
+ * to decrypt the actual data.
+ * @param privateKeyPem The PEM-encoded RSA private key.
+ * @param envKey The base64-encoded encrypted AES key and IV.
+ * @param encryptedData The base64-encoded data encrypted with the AES key.
+ * @returns The decrypted string.
+ */
+export function decrypt(privateKeyPem: string, envKey: string, encryptedData: string): string;
+
+/**
+ * Decrypts the request body of an incoming request.
+ * @param req The incoming request object.
+ * @param res The outgoing response object.
+ * @param next The next middleware function in the stack.
+ */
+export function decryptRequestBody(req: Request, res: Response, next: NextFunction): void;
