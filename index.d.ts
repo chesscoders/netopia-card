@@ -260,18 +260,6 @@ export function generateKeys(options: {
 }): Promise<{ privateKey: string; publicKey: string }>;
 
 /**
- * Saves generated private and public keys into environment variables and appends them to a .env file.
- * This function handles the key generation, newline formatting, and saving process.
- * @param options Options for key generation.
- * @param file The path to the .env file where the keys will be saved.
- * @returns A promise that resolves when the keys have been saved.
- */
-export function saveKeysInEnvironment(
-  options: { serialNumber: string; attrs: { name: string; value: string }[] },
-  file: string
-): Promise<void>;
-
-/**
  * Encrypts data using an RSA public key for the AES key and IV, and AES-CBC for the actual data encryption.
  * The function generates a random AES key and IV, encrypts the data, and then encrypts the AES key and IV using the RSA public key.
  * @param certificatePem The PEM-encoded certificate containing the RSA public key.

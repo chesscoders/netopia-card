@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { encrypt, decrypt } = require('../functions');
+const { decrypt, encrypt } = require('../functions');
 
 describe('Encrypt and decrypt logic', () => {
   test('should encrypt and decrypt data', () => {

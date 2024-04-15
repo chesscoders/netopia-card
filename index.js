@@ -1,6 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
-const { decrypt, encrypt, generateKeys, saveKeysInEnvironment } = require('./functions');
+const { generateKeys, encrypt, decrypt } = require('./functions');
 
 class Netopia {
   constructor({
@@ -137,7 +137,6 @@ function decryptRequestBody(req, res, next) {
 module.exports = {
   Netopia,
   generateKeys,
-  saveKeysInEnvironment,
   encrypt,
   decrypt,
   decryptRequestBody,
