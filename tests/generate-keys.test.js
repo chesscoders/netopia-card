@@ -40,7 +40,7 @@ describe('Generates a key pair with 2048 bits', () => {
         { shortName: 'OU', value: 'Test' },
       ],
     };
-    const file = '.env';
+    const file = '.env.test';
 
     // Act
     await saveKeysInEnvironment(options, file);

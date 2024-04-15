@@ -1,12 +1,12 @@
 require('dotenv').config();
-const { encrypt, decrypt, formatNewlines } = require('../functions');
+const { encrypt, decrypt } = require('../functions');
 
 describe('Encrypt and decrypt logic', () => {
   test('should encrypt and decrypt data', () => {
     // Arrange
     const data = 'Hello world!';
-    const publicKey = formatNewlines(process.env.PUBLIC_KEY);
-    const privateKey = formatNewlines(process.env.PRIVATE_KEY);
+    const publicKey = process.env.PUBLIC_KEY;
+    const privateKey = process.env.PRIVATE_KEY;
 
     // Act
     const { envKey, envData } = encrypt(publicKey, data);
@@ -14,5 +14,24 @@ describe('Encrypt and decrypt logic', () => {
 
     // Assert
     expect(decryptedData).toBe(data);
+  });
+
+  test('should encrypt and decrypt an object', () => {
+    // Arrange
+    const data = {
+      account: '9900004810225098',
+      expMonth: 12,
+      expYear: 2024,
+      secretCode: '111',
+    };
+    const publicKey = process.env.PUBLIC_KEY;
+    const privateKey = process.env.PRIVATE_KEY;
+
+    // Act
+    const { envKey, envData } = encrypt(publicKey, JSON.stringify(data));
+    const decryptedData = JSON.parse(decrypt(privateKey, envKey, envData));
+
+    // Assert
+    expect(decryptedData).toEqual(data);
   });
 });
