@@ -89,14 +89,14 @@ class Netopia {
     return [
       '/notify',
       this.rawTextBodyParser,
-      (req, res) => {
+      async (req, res) => {
         try {
           const { order, payment } = JSON.parse(req.body);
           if (!order || !payment) {
             throw new Error('Invalid request body');
           }
 
-          callback({ order, payment });
+          await callback({ order, payment });
 
           res.header('Content-Type', 'application/json');
           res.status(200).json({ errorCode: 0 });

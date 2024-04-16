@@ -164,9 +164,9 @@ type PaymentBinding = {
 };
 
 /**
- * A callback type for processing payment notifications.
+ * A callback type for asynchronously processing payment notifications.
  */
-type NotificationCallback = (payload: NotifyRequest) => void;
+type NotificationCallback = (payload: NotifyRequest) => Promise<void>;
 
 /**
  * Defines the type for an Express request object.
