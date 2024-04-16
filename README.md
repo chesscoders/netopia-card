@@ -1,243 +1,218 @@
 # Netopia Card
 
-Lightweight NodeJS library to integrate [Netopia mobilPay](https://netopia-payments.com) payment gateway in your projects.
+**Version 2 Update Notice**: This version (v2) introduces significant changes from v1, including configuration options and methods. Please see the migration guide below for details.
 
-- builds Netopia mobilPay request from the input data
-- adds split payments field to the request to send part of the payment to another account
-- validates Netopia mobilPay response based on the private key associated with the account
+Netopia Card is a lightweight NodeJS library designed to integrate the [Netopia mobilPay](https://netopia-payments.com) payment gateway into your projects with ease. It allows for the construction of Netopia mobilPay requests from input data, supports split payments, and validates Netopia mobilPay responses using the private key associated with your account.
 
 ## Installation
 
+To add Netopia Card to your project, run:
+
 ```sh
-npm i netopia-card
-#or
+npm install netopia-card
+# or, using Yarn
 yarn add netopia-card
 ```
 
-## Useful links
+## Features
 
-- [request structure for card payments](https://support.netopia-payments.com/en-us/article/39-care-este-structura-unui-request-de-plata-prin-card)
-- [demo cards used for sandbox](https://support.netopia-payments.com/en-us/article/52-carduri-de-test)
+- Easy-to-use API for initiating card payments and handling callbacks
+- Support for split payments, allowing a portion of the payment to be sent to another account
+- Robust validation of Netopia mobilPay responses for secure transaction processing
 
-## Usage
+## Configuration
 
-The first step for using this library is to set yor unique environment variables from an **approved** Netopia sales point.
-
-You can find these keys in the [Netopia admin dashboard](https://admin.netopia-payments.com/domains) > Puncte de vanzare > Vezi lista > Setari tehnice
-
-Your `.env` file should look like this:
+Before using Netopia Card, set your environment variables based on the credentials provided by Netopia for your sales point.
 
 ```sh
+API_BASE_URL="https://example.com/"
+NETOPIA_API_KEY="Your_API_Key_Here"
 NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
-NETOPIA_PRIVATE_KEY_B64="-----BEGIN PRIVATE KEY-----
-XXXX...XXXX
------END PRIVATE KEY-----"
-NETOPIA_PUBLIC_KEY_B64="-----BEGIN CERTIFICATE-----
-XXXX...XXXX
------END CERTIFICATE-----"
-NETOPIA_CONFIRM_URL="http://api.example.com"
-NETOPIA_RETURN_URL="http://example.com"
 ```
 
-Import the library
+These credentials can be found in the [NETOPIA Payments admin](https://admin.netopia-payments.com/) > Profile > Security.
+
+## Quick Start
+
+First, import the library into your project:
 
 ```javascript
-const Netopia = require('netopia-card'); // ES5
-import Netopia from 'netopia-card'; // ES6
+const { Netopia } = require('netopia-card');
 ```
 
-| `constructor` params | Type      | Description                                                    |
-| -------------------- | --------- | -------------------------------------------------------------- |
-| signature            | `string`  | Signature provided by Mobilpay                                 |
-| publicKey            | `string`  | Public key provided by Mobilpay                                |
-| privateKey           | `string`  | Private key provided by Mobilpay                               |
-| confirmUrl           | `string`  | The url which the Netopia API should call for confirmation     |
-| returnUrl            | `string`  | The url which the Netopia API should return after confirmation |
-| sandbox              | `Boolean` | Use for sandbox                                                |
-
-If you saved the signature, the public key, and the private key in the `.env` file, you do not have to provide the constructor with parameters. These will be taken from the environment variables if they exist.
-
-```javascript
-const netopia = new Netopia();
-```
-
-or
+Create a new instance of Netopia by providing your API key and other configuration options:
 
 ```javascript
 const netopia = new Netopia({
-  signature, // Netopia mobilPay signature
-  publicKey, // Netopia mobilPay public key
-  privateKey, // Netopia mobilPay private key
+  apiKey: 'Your_API_Key_Here',
+  sandbox: true, // Use `false` for production
 });
 ```
 
-After initialization, you need to initialize and set the client and payment details.
-
-| `setClientBillingData` params | Type     | Description                                                         |
-| ----------------------------- | -------- | ------------------------------------------------------------------- |
-| billingType                   | `string` | The billing type. Can be `person` or `company`. Default is `person` |
-| firstName                     | `string` | The client's first name                                             |
-| lastName                      | `string` | The client's last name                                              |
-| country                       | `string` | The client's country                                                |
-| county                        | `string` | The client's county                                                 |
-| city                          | `string` | The client's city                                                   |
-| zipCode                       | `string` | The client's zip code                                               |
-| address                       | `string` | The client's address                                                |
-| email                         | `string` | The client's email                                                  |
-| phone                         | `string` | The client's phone number                                           |
-| bank                          | `string` | The client's bank                                                   |
-| iban                          | `string` | The client's iban                                                   |
+Initiate a payment by calling the `startPayment` method with the necessary payment details:
 
 ```javascript
-netopia.setClientBillingData({
-  firstName: 'John',
-  lastName: 'Doe',
-  country: 'Romania',
-  county: 'Bucharest',
-  city: 'Bucharest',
-  zipCode: '123456',
-  address: '123 Main St',
-  email: 'example@email.com',
-  phone: '1234567890',
-  bank: 'Bank',
-  iban: 'RO00BANK0000000000000000',
-});
-```
+const { decryptRequestBody } = require('netopia-card');
 
-| `setParams` params | Type                     | Description                |
-| ------------------ | ------------------------ | -------------------------- |
-| params             | `{ [key: string]: any }` | The params for the payment |
-
-```javascript
-netopia.setParams({ param1: 'string', param2: 1 });
-```
-
-| `setPaymentData` params | Type     | Description                                       |
-| ----------------------- | -------- | ------------------------------------------------- |
-| orderId                 | `string` | The unique identifier for the payment             |
-| amount                  | `number` | The amount to be paid                             |
-| currency                | `string` | The currency in which the payment will take place |
-| details                 | `string` | The details of the payment                        |
-
-```javascript
-netopia.setPaymentData({
-  orderId: Date.now().toString(),
-  amount: 1,
-  currency: 'RON',
-  details: 'No details',
-});
-```
-
-You can also set a different shipping address by using `netopia.setClientShippingData({...})` which has the same parameters as `netopia.setClientBillingData({...})` presented above.
-
-For setting up split payments you can use the `setSplitPayment` function:
-
-| `setSplitPayment` params | Type     | Description                                    |
-| ------------------------ | -------- | ---------------------------------------------- |
-| firstDestinationId       | `string` | The sac id (signature) of the first recipient  |
-| firstDestinationAmount   | `number` | The amount for the first recipient             |
-| secondDestinationId      | `string` | The sac id (signature) of the second recipient |
-| secondDestinationAmount  | `number` | The amount for the second recipient            |
-
-```javascript
-netopia.setSplitPayment('<first_recipient_sac_id>', 1, '<second_recipient_sac_id>', 2);
-```
-
-To build the request
-
-```javascript
-const request = netopia.buildRequest();
-```
-
-The `request` that will be constructed will look like:
-
-```javascript
-{
-  "url": "http://sandboxsecure.mobilpay.ro",
-  "env_key": "OQR4VUMOHY1W+jMcE8NCc7Es2mf37+lqECwygW8rS1O55E2kkwwZqY9oyG4WuXeyN7rjIiC3YvmvJ1od8+5f2p1ygxe4H1gp0naxfEi52W/PAuoChgqkVKswvI67kzKg3yc7JGpbPcOp+hTgnTAzegWGb69WTpLxWf+HGHs0A/o=",
-  "data": "OImfydaqxpWVm0ygudhUNaV0vlBkpHSEcs+gqX5z8vr1rt5KXCLtODtTsXo2/B4D7sYpIj21sm4hr4M/80/DuaH/46tw2v602PUs3MdVqY7/KWiDUw3EywwB5Vjvwqd4DfIUtOBYTvbTPvnj2Ly5MdUWxtJpOFkE3UbmmbJqDYIqQDus/G8EisHeJI73pWumoSOZjYpukV6wj4uh9Pbp/GlnaFPIvKWECF0lBx8yr6kYbLGcDYqB6ly8yAtr1BOcCmcfV2J5BGbnPnF3RbAdGYvwd5Vt2MvzdETeoYrtb+hTjw1c2HSo/P/NhbKzk9IOA6ZkMcDE4Lti82c4QkwfwSTtyYlrkszk1CmU+m3r6if0qPqvTd5KTn7Zi/YcRNvwYmu05MKgth8MuAl/guqx37H9o6dSBDpBmCi+fRQ09J/BvzjIihAVpqypayByRu/jB6KJ4PZrBMHdsTdkbjDosuWfJPeEl+HwkWXnTsTdemGjsxpIE80Cat8c2ma/LHMvcRkpowOwX6YAhKBifI+s7zKbbA9L351YqgUSwKLXT2IuWiaPWIF+0ppSMI3Kc3Eqd6GdnFLy1Ku+IX3wpY4rOetbdYdotdLSfTceThx1raQfA6UMqbW7JdRgo++SfLXXO+p9QatWps+ZvLjhFCqufF5l0SeNFyXvmVkk1Qvu0uBxLy+V1t6qoX3SiVho/tEIFf6EcZ3Rp8pHUo+YTQmME+kXP0lexp6Ur3BNYiCqmi6Vobg23IguNzjZV0PIIH0etbq186Rqcz9otmPekO6/z1cZKTVtgoO2t+5PNWQ4ivjvSizUlV2Ltv3D7YqC1bOMJR4rrKarMLUnczAoWplT9OIK7eSnwo3kF7/vceKZJt4J+CbRBWHGATV/c7ktgkJXoOyPyjq8NqRnkX2ECnRVwegOa/ZIoIldPUuQoEqi1Ie5m4IerUDULBVoOGzbzEeq+3H2oGTPyoyCdmK1nz6DiDTMrnRb7C++hPz2+MN6DxYYFAIkXmh6NzfLTK8x/vVeSHkCea1drjSIUTscx9U+uYtcgUpl81IIhGGbvoCaqScf7Pedrj8pZujyX34DBqJ0wdHtFwu3jDL5znRiCIqlmJCYErweJoUCcTphDvpUwY6vWOise+5n33gCf1/FrUrXRApcU9N3/HokiT90cIfyK95TGunU5Q=="
-}
-```
-
-To send a request to Mobilpay, you need to setup a `form` with `method="POST"`, and `action=request.url`.
-As inputs for the form, you need to send the `request.env_key` and `request.data`.
-
-After being processed and the payment has been made, the Mobilpay API will make an API call to the `confirmUrl` set above. The `confirmUrl` should be an endpoint on the API you are building, because it needs to verify the response from Mobilpay.
-
-To verify, you need the `validatePayment` method which take the `env_key` and `data` from the Mobilpay request body, and also set the private key (from file or string).
-
-| `validatePayment` params | Type     | Description                                |
-| ------------------------ | -------- | ------------------------------------------ |
-| env_key                  | `string` | The env_key from the Mobilpay request body |
-| data                     | `string` | The data from the Mobilpay request body    |
-
-```js
-const { data, env_key } = req.body;
-const netopia = new Netopia();
-const response = await netopia.validatePayment(env_key, data);
-
-if (response.error) {
-  /*
-   * Code in case of error
-   */
-  res.set(response.res.set.key, response.res.set.value);
-  res.status(200).send(response.res.send);
-}
-
-/*
- * Code in case of success
- */
-switch (response.action) {
-  case 'confirmed':
-    // do something
-    break;
-  case 'paid':
-    // do something
-    break;
-  case 'paid_pending':
-    // do something
-    break;
-  case 'confirmed_pending':
-    // do something
-    break;
-}
-
-res.set(response.res.set.key, response.res.set.value);
-res.status(200).send(response.res.send);
-```
-
-A successful `response` from the validation looks like this:
-
-```javascript
-{
-    "action": mobilpayAction,
-    "errorMessage": null,
-    "error": null,
-    $: {...},
-    "orderInvoice": {...},
-    "res": {
-        "set": {
-            "key": "Content-Type",
-            "value": "application/xml"
+router.post('/payment/start', decryptRequestBody, async function (req, res) {
+  const requestData = {
+    config: {
+      emailTemplate: '',
+      emailSubject: '',
+      language: 'ro',
+    },
+    payment: {
+      options: {
+        installments: 0,
+        bonus: 0,
+      },
+      instrument: {
+        type: 'card',
+        account: '9900009184214768',
+        expMonth: 12,
+        expYear: 2022,
+        secretCode: '111',
+        token: '',
+      },
+      data: {
+        BROWSER_USER_AGENT:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36',
+        BROWSER_TZ: 'Europe/Bucharest',
+        BROWSER_COLOR_DEPTH: '32',
+        BROWSER_JAVA_ENABLED: 'true',
+        BROWSER_LANGUAGE: 'en-US,en;q=0.9',
+        BROWSER_TZ_OFFSET: '0',
+        BROWSER_SCREEN_WIDTH: '1200',
+        BROWSER_SCREEN_HEIGHT: '1400',
+        BROWSER_PLUGINS: 'Chrome PDF Plugin, Chrome PDF Viewer, Native Client',
+        MOBILE: 'false',
+        SCREEN_POINT: 'false',
+        OS: 'macOS',
+        OS_VERSION: '10.15.7 (32-bit)',
+        IP_ADDRESS: '127.0.0.1',
+      },
+    },
+    order: {
+      ntpID: '',
+      posSignature: 'XXXX-XXXX-XXXX-XXXX-XXXX',
+      dateTime: '2023-08-24T14:15:22Z',
+      description: 'Some order description',
+      orderID: 'Merchant order Id',
+      amount: 1,
+      currency: 'RON',
+      billing: {
+        email: 'user@example.com',
+        phone: '+407xxxxxxxx',
+        firstName: 'First',
+        lastName: 'Last',
+        city: 'City',
+        country: 642,
+        countryName: 'Romania',
+        state: 'State',
+        postalCode: 'Zip',
+        details: '',
+      },
+      shipping: {
+        email: 'user@example.com',
+        phone: '+407xxxxxxxx',
+        firstName: 'First',
+        lastName: 'Last',
+        city: 'City',
+        country: 642,
+        state: 'State',
+        postalCode: 'Zip',
+        details: '',
+      },
+      products: [
+        {
+          name: 'string',
+          code: 'SKU',
+          category: 'category',
+          price: 1,
+          vat: 19,
         },
-        "send": `<?xml version="1.0" encoding="utf-8" ?><crc>errorMessage</crc>`
+      ],
+      installments: {
+        selected: 0,
+        available: [0],
+      },
+      data: {
+        property1: 'string',
+        property2: 'string',
+      },
+    },
+  };
+
+  try {
+    const response = await netopia.startPayment(requestData);
+    console.log(response);
+
+    if (response.error?.code === '00') {
+      res.status(200).json(response);
+    } else {
+      res.status(400).json(response);
     }
-}
+  } catch (error) {
+    console.error('Error', error.message);
+    res.status(500).json({ message: error.message });
+  }
+});
 ```
 
-## Implementation details
+Handle payment notifications by creating a notification route:
 
-### Confirm URL vs return URL
+```javascript
+const express = require('express');
+const app = express();
 
-- **confirm URL** - a URL in your API that will be called whenever the status of a payment changes
-- **return URL** - a URL in your web application where the client will be redirected to once the payment is complete.
+app.use(
+  ...netopia.createNotifyRoute(({ payment, order }) => {
+    console.log('Order ID:', order?.orderID);
 
-The `returnUrl` **should not be confused with a success or cancel URL**, the information displayed here is dynamic,
-based on the information previously sent to the `confirmUrl`.
+    switch (payment?.status) {
+      case 3:
+        console.log('Payment was successful');
+        break;
+      case 5:
+        console.log('Payment was confirmed');
+        break;
+      case 12:
+        console.log('Payment was rejected');
+        break;
+      default:
+        console.log('Payment status unknown');
+        break;
+    }
+  })
+);
 
-The `returnUrl` should be a static page to indicate the end-user that the payment has been made.
+app.listen(3000, () => console.log('Server running on port 3000'));
+```
 
-## Debugging
+## Migration Guide from v1 to v2
 
-This module uses debugging features for important operations.
-To activate debugging set the `SHOW_NETOPIA_DEBUG="yes"` environment variable.
+Version 2 of Netopia Card introduces several key changes:
+
+- The configuration process now includes setting the `API_BASE_URL` in your environment variables. This URL is used to construct the full URL for the Netopia notify callback endpoint.
+- The `startPayment` and `createNotifyRoute` methods have been updated to accommodate the new configuration options.
+- Removal of `redirectUrl` from the `Config` type in favor of a server-side handling approach for payment completion redirection.
+
+**To migrate from v1 to v2:**
+
+1. Update your environment variables to include `API_BASE_URL`.
+2. Adjust your `Netopia` instantiation to include the new `apiBaseUrl` option if you were previously passing `redirectUrl` and `notifyUrl` directly to the `startPayment` method.
+3. Update any calls to `startPayment` to match the new method signature.
+
+## Further Resources
+
+- [Sandbox Testing Cards](https://support.netopia-payments.com/en-us/article/52-carduri-de-test)
+
+For detailed information on the API and configuration options, please refer to the [NETOPIA Payments - merchant API](https://apidoc.netopia-payments.com/index.html).
+
+## Contributing
+
+We welcome contributions to improve Netopia Card. Please feel free to submit pull requests or report issues via the [GitHub repository](https://github.com/chesscoders/netopia-card).
+
+## License
+
+Netopia Card is licensed under the MIT License. See the LICENSE file for more details.
