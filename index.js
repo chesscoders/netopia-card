@@ -4,13 +4,13 @@ const { generateKeys, encrypt, decrypt } = require('./functions');
 
 class Netopia {
   constructor({
+    apiBaseUrl = process.env.API_BASE_URL,
     apiKey = process.env.NETOPIA_API_KEY,
-    apiUrl = process.env.API_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
     sandbox = false,
   } = {}) {
+    this.apiBaseUrl = apiBaseUrl;
     this.apiKey = apiKey;
-    this.apiUrl = apiUrl;
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
       : 'https://secure.mobilpay.ro/pay';
@@ -50,14 +50,14 @@ class Netopia {
   }
 
   async startPayment(requestData) {
-    if (!this.apiUrl) {
+    if (!this.apiBaseUrl) {
       throw new Error('API URL is required');
     }
     if (!this.posSignature) {
       throw new Error('POS signature is required');
     }
 
-    requestData.config.notifyUrl = new URL('notify', this.apiUrl).href;
+    requestData.config.notifyUrl = new URL('notify', this.apiBaseUrl).href;
     requestData.order.posSignature = this.posSignature;
     const url = `${this.baseUrl}/payment/card/start`;
 

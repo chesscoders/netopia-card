@@ -222,8 +222,8 @@ export declare class Netopia {
    * @param config Configuration options for the Netopia instance.
    */
   constructor(config: {
+    apiBaseUrl?: string;
     apiKey?: string;
-    apiUrl?: string;
     posSignature?: string;
     sandbox?: boolean;
   });

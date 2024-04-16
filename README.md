@@ -25,7 +25,7 @@ yarn add netopia-card
 Before using Netopia Card, set your environment variables based on the credentials provided by Netopia for your sales point.
 
 ```sh
-API_URL="https://api.yourdomain.com/v1/"
+API_BASE_URL="https://example.com/"
 NETOPIA_API_KEY="Your_API_Key_Here"
 NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
 ```
@@ -193,14 +193,14 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 
 Version 2 of Netopia Card introduces several key changes:
 
-- The configuration process now includes setting the `API_URL` in your environment variables. This URL is used to construct the full URL for the Netopia notify callback endpoint.
+- The configuration process now includes setting the `API_BASE_URL` in your environment variables. This URL is used to construct the full URL for the Netopia notify callback endpoint.
 - The `startPayment` and `createNotifyRoute` methods have been updated to accommodate the new configuration options.
 - Removal of `redirectUrl` from the `Config` type in favor of a server-side handling approach for payment completion redirection.
 
 **To migrate from v1 to v2:**
 
-1. Update your environment variables to include `API_URL`.
-2. Adjust your `Netopia` instantiation to include the new `apiUrl` option if you were previously passing `redirectUrl` and `notifyUrl` directly to the `startPayment` method.
+1. Update your environment variables to include `API_BASE_URL`.
+2. Adjust your `Netopia` instantiation to include the new `apiBaseUrl` option if you were previously passing `redirectUrl` and `notifyUrl` directly to the `startPayment` method.
 3. Update any calls to `startPayment` to match the new method signature.
 
 ## Further Resources
