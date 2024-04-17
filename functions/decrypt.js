@@ -4,7 +4,6 @@ const forge = require('node-forge');
  * Decrypts data that was encrypted with an RSA public key using AES-CBC encryption.
  * The function uses the private key to first decrypt the AES key and IV, and then uses them
  * to decrypt the actual data.
- *
  * @param {string} privateKeyPem - The PEM-encoded RSA private key.
  * @param {string} envKey - The base64-encoded encrypted AES key and IV.
  * @param {string} encryptedData - The base64-encoded data encrypted with the AES key.

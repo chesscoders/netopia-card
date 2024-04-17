@@ -233,6 +233,69 @@ interface BrowserInfo {
 }
 
 /**
+ * Represents the payment data required to process a payment.
+ */
+interface PaymentData {
+  account: string;
+  expMonth: number;
+  expYear: number;
+  secretCode: string;
+}
+
+/**
+ * Represents the browser data collected from the user to aid in fraud prevention.
+ */
+interface BrowserData {
+  BROWSER_USER_AGENT?: string;
+  BROWSER_TZ?: string;
+  BROWSER_COLOR_DEPTH?: string;
+  BROWSER_JAVA_ENABLED?: string;
+  BROWSER_LANGUAGE?: string;
+  BROWSER_TZ_OFFSET?: string;
+  BROWSER_SCREEN_WIDTH?: string;
+  BROWSER_SCREEN_HEIGHT?: string;
+  BROWSER_PLUGINS?: string;
+  MOBILE?: string;
+  SCREEN_POINT?: string;
+  OS?: string;
+  OS_VERSION?: string;
+}
+
+/**
+ * Represents the order data needed to create a new order.
+ */
+interface OrderData {
+  orderID: string;
+  amount: number;
+  currency?: string;
+  dateTime?: string;
+  description?: string;
+  billing: {
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    city?: string;
+    country?: number;
+    countryName?: string;
+    state?: string;
+    postalCode?: string;
+    details?: string;
+  };
+}
+
+/**
+ * Represents the data for products included in an order.
+ */
+interface ProductData {
+  name: string;
+  code: string;
+  category: string;
+  price: number;
+  vat: number;
+}
+
+/**
  * Collects and returns various browser and system information from the provided navigator and window objects.
  * @param navigator The navigator object from the browser context.
  * @param window The window object representing the browser's window.
@@ -301,11 +364,37 @@ export declare class Netopia {
   });
 
   /**
-   * Initiates a payment with the given request data.
-   * @param requestData The data needed to initiate the payment.
+   * Sets the payment data required for initiating a payment.
+   * @param paymentData The payment data including account details and security information.
+   */
+  setPaymentData(paymentData: PaymentData): void;
+
+  /**
+   * Sets browser-related data collected from the user, enhancing security and fraud prevention.
+   * @param reqBody The body of the HTTP request containing browser information.
+   * @param reqIp The IP address of the user making the request.
+   */
+  setBrowserData(reqBody: BrowserData, reqIp: string): void;
+
+  /**
+   * Sets the order data including details about the transaction and billing information.
+   * @param orderData The data necessary to create and describe an order.
+   */
+  setOrderData(orderData: OrderData): void;
+
+  /**
+   * Sets the product data for the items included in the order.
+   * @param productsData Array of product data, detailing each product involved in the transaction.
+   */
+  setProductsData(productsData: ProductData[]): void;
+
+  /**
+   * Initiates a payment using the internal configuration, order, and payment information.
+   * This method prepares the request data, sets the notification URL and POS signature,
+   * and sends the payment request to the configured API endpoint.
    * @returns A promise that resolves with the details of the initiated payment.
    */
-  startPayment(requestData: StartRequest): Promise<any>;
+  startPayment(): Promise<any>;
 
   /**
    * Creates an Express route array for handling payment notifications.

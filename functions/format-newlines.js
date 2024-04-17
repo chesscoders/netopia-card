@@ -3,7 +3,6 @@
  * This function replaces all occurrences of "\\r\\n" (Windows-style newline) and "\\r" (old Mac-style newline)
  * with "\\n" (Unix-style newline). It's particularly useful for normalizing newline characters in text
  * data that may have originated from different operating systems.
- *
  * @param {string} str - The string to be processed.
  * @return {string} The processed string with unified newline characters.
  */

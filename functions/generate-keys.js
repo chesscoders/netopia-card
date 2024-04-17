@@ -3,7 +3,6 @@ const forge = require('node-forge');
 /**
  * Generates a self-signed certificate along with a corresponding private key.
  * Allows customization of the certificate's attributes and serial number through options.
- *
  * @param {Object} options - Optional settings which may include `serialNumber` and `attrs` for the certificate attributes.
  * @return {Promise<Object>} A promise that resolves with an object containing PEM-encoded strings of the private key and certificate.
  */
@@ -48,7 +47,6 @@ function generateSelfSignedCertificate(options = {}) {
 /**
  * Asynchronous function that generates a self-signed certificate and its corresponding private key.
  * Utilizes `generateSelfSignedCertificate` to create the certificate.
- *
  * @param {Object} options - Options to pass to `generateSelfSignedCertificate`, such as `serialNumber` and certificate attributes.
  * @return {Promise<Object>} A promise that resolves with an object containing the private key and the public key certificate.
  */
