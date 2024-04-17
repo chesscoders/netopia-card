@@ -214,6 +214,78 @@ type Middleware = (req: Request, res: Response, next: NextFunction) => void;
 type RequestHandler = (req: Request, res: Response) => void | Promise<void>;
 
 /**
+ * Interface representing the information collected from the browser and window.
+ */
+interface BrowserInfo {
+  BROWSER_USER_AGENT: string;
+  BROWSER_TZ: string;
+  BROWSER_COLOR_DEPTH: number;
+  BROWSER_JAVA_ENABLED: boolean;
+  BROWSER_LANGUAGE: string;
+  BROWSER_TZ_OFFSET: number;
+  BROWSER_SCREEN_WIDTH: number;
+  BROWSER_SCREEN_HEIGHT: number;
+  BROWSER_PLUGINS: string;
+  MOBILE: boolean;
+  SCREEN_POINT: string;
+  OS: string;
+  OS_VERSION: string;
+}
+
+/**
+ * Collects and returns various browser and system information from the provided navigator and window objects.
+ * @param navigator The navigator object from the browser context.
+ * @param window The window object representing the browser's window.
+ * @returns BrowserInfo An object containing detailed browser and device information.
+ */
+export function collectBrowserInfo(navigator: Navigator, window: Window): BrowserInfo;
+
+/**
+ * Decrypts data that was encrypted with an RSA public key using AES-CBC encryption.
+ * The function uses the private key to first decrypt the AES key and IV, and then uses them
+ * to decrypt the actual data.
+ * @param privateKeyPem The PEM-encoded RSA private key.
+ * @param envKey The base64-encoded encrypted AES key and IV.
+ * @param encryptedData The base64-encoded data encrypted with the AES key.
+ * @returns The decrypted string.
+ */
+export function decrypt(privateKeyPem: string, envKey: string, encryptedData: string): string;
+
+/**
+ * Decrypts the request body of an incoming request.
+ * @param req The incoming request object.
+ * @param res The outgoing response object.
+ * @param next The next middleware function in the stack.
+ */
+export function decryptRequestBody(req: Request, res: Response, next: NextFunction): void;
+
+/**
+ * Encrypts data using an RSA public key for the AES key and IV, and AES-CBC for the actual data encryption.
+ * The function generates a random AES key and IV, encrypts the data, and then encrypts the AES key and IV using the RSA public key.
+ * @param certificatePem The PEM-encoded certificate containing the RSA public key.
+ * @param data The plaintext data to encrypt.
+ * @returns An object containing base64-encoded strings of the encrypted key (envKey) and the encrypted data (envData).
+ */
+export function encrypt(certificatePem: string, data: string): { envKey: string; envData: string };
+
+/**
+ * Asynchronous function that generates a self-signed certificate and its corresponding private key.
+ * @param options Options for certificate generation.
+ * @returns A promise that resolves with the generated certificate and private key.
+ */
+export function generateKeys(options: {
+  serialNumber: string;
+  attrs: { name: string; value: string }[];
+}): Promise<{ privateKey: string; publicKey: string }>;
+
+/**
+ * Determines if a given error code represents a payment error.
+ * @param errorCode The error code to check.
+ * @returns true if the error code represents a payment error; otherwise, false.
+ */
+export function isPaymentError(errorCode: string): boolean;
+
+/**
  * Represents the Netopia payment integration class.
  */
 export declare class Netopia {
@@ -248,41 +320,3 @@ export declare class Netopia {
    */
   createNotifyRoute(callback: NotificationCallback): [string, Middleware, RequestHandler];
 }
-
-/**
- * Asynchronous function that generates a self-signed certificate and its corresponding private key.
- * @param options Options for certificate generation.
- * @returns A promise that resolves with the generated certificate and private key.
- */
-export function generateKeys(options: {
-  serialNumber: string;
-  attrs: { name: string; value: string }[];
-}): Promise<{ privateKey: string; publicKey: string }>;
-
-/**
- * Encrypts data using an RSA public key for the AES key and IV, and AES-CBC for the actual data encryption.
- * The function generates a random AES key and IV, encrypts the data, and then encrypts the AES key and IV using the RSA public key.
- * @param certificatePem The PEM-encoded certificate containing the RSA public key.
- * @param data The plaintext data to encrypt.
- * @returns An object containing base64-encoded strings of the encrypted key (envKey) and the encrypted data (envData).
- */
-export function encrypt(certificatePem: string, data: string): { envKey: string; envData: string };
-
-/**
- * Decrypts data that was encrypted with an RSA public key using AES-CBC encryption.
- * The function uses the private key to first decrypt the AES key and IV, and then uses them
- * to decrypt the actual data.
- * @param privateKeyPem The PEM-encoded RSA private key.
- * @param envKey The base64-encoded encrypted AES key and IV.
- * @param encryptedData The base64-encoded data encrypted with the AES key.
- * @returns The decrypted string.
- */
-export function decrypt(privateKeyPem: string, envKey: string, encryptedData: string): string;
-
-/**
- * Decrypts the request body of an incoming request.
- * @param req The incoming request object.
- * @param res The outgoing response object.
- * @param next The next middleware function in the stack.
- */
-export function decryptRequestBody(req: Request, res: Response, next: NextFunction): void;

@@ -2,12 +2,80 @@ require('dotenv').config();
 const axios = require('axios');
 const { generateKeys, encrypt, decrypt } = require('./functions');
 
+/**
+ * Collects and returns various browser and system information from the provided navigator and window objects.
+ * @param {Navigator} navigator - The navigator object, typically available in the browser context, that provides information about the browser.
+ * @param {Window} window - The window object representing the browser's window, providing information about the screen and more.
+ * @returns {Object} An object containing browser and device information, such as user agent, time zone, color depth, and more.
+ */
+function collectBrowserInfo(navigator, window) {
+  return {
+    BROWSER_USER_AGENT: navigator.userAgent,
+    BROWSER_TZ: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    BROWSER_COLOR_DEPTH: window.screen.colorDepth,
+    BROWSER_JAVA_ENABLED: false,
+    BROWSER_LANGUAGE: navigator.language,
+    BROWSER_TZ_OFFSET: new Date().getTimezoneOffset(),
+    BROWSER_SCREEN_WIDTH: window.screen.width,
+    BROWSER_SCREEN_HEIGHT: window.screen.height,
+    BROWSER_PLUGINS: '',
+    MOBILE: /Mobi|Android/i.test(navigator.userAgent),
+    SCREEN_POINT: 'false',
+    OS: '',
+    OS_VERSION: '',
+  };
+}
+
+/**
+ * Decrypts the given request body using the provided private key.
+ * @param {*} req - The request object.
+ * @param {*} res - The response object.
+ * @param {*} next - The next middleware function.
+ * @returns {void} Calls the next middleware function if successful; otherwise, sends a 400 Bad Request response.
+ */
+function decryptRequestBody(req, res, next) {
+  try {
+    const { envKey, envData } = req.body;
+    if (!envKey || !envData) {
+      throw new Error('Invalid request body');
+    }
+
+    const privateKey = process.env.PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error('Private key is required');
+    }
+
+    const decryptedData = decrypt(privateKey, envKey, envData);
+    if (!decryptedData) {
+      throw new Error('Failed to decrypt data');
+    }
+
+    req.body = JSON.parse(decryptedData);
+    next();
+  } catch (error) {
+    console.error('Error decrypting request body:', error);
+    res.status(400).json({ errorCode: 1 });
+  }
+}
+
+/**
+ * Determines if a given error code represents a payment error.
+ * @param {string} errorCode - The error code to check.
+ * @returns {boolean} Returns true if the error code is not '00', indicating a payment error; false otherwise.
+ */
+function isPaymentError(errorCode) {
+  return errorCode !== '00';
+}
+
+/**
+ * A class that provides methods for interacting with the Netopia API.
+ */
 class Netopia {
   constructor({
     apiBaseUrl = process.env.API_BASE_URL,
     apiKey = process.env.NETOPIA_API_KEY,
     posSignature = process.env.NETOPIA_SIGNATURE,
-    sandbox = false,
+    sandbox = process.env.NODE_ENV !== 'production',
   } = {}) {
     this.apiBaseUrl = apiBaseUrl;
     this.apiKey = apiKey;
@@ -109,35 +177,12 @@ class Netopia {
   }
 }
 
-function decryptRequestBody(req, res, next) {
-  try {
-    const { envKey, envData } = req.body;
-    if (!envKey || !envData) {
-      throw new Error('Invalid request body');
-    }
-
-    const privateKey = process.env.PRIVATE_KEY;
-    if (!privateKey) {
-      throw new Error('Private key is required');
-    }
-
-    const decryptedData = decrypt(privateKey, envKey, envData);
-    if (!decryptedData) {
-      throw new Error('Failed to decrypt data');
-    }
-
-    req.body = JSON.parse(decryptedData);
-    next();
-  } catch (error) {
-    console.error('Error decrypting request body:', error);
-    res.status(400).json({ errorCode: 1 });
-  }
-}
-
 module.exports = {
-  Netopia,
-  generateKeys,
-  encrypt,
+  collectBrowserInfo,
   decrypt,
   decryptRequestBody,
+  encrypt,
+  generateKeys,
+  isPaymentError,
+  Netopia,
 };
