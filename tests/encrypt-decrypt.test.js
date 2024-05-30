@@ -34,4 +34,22 @@ describe('Encrypt and decrypt logic', () => {
     // Assert
     expect(decryptedData).toEqual(data);
   });
+
+  test('should encrypt and decrypt an object with diacritics', () => {
+    // Arrange
+    const data = {
+      mesaj: 'Salut! Cum te simți azi?',
+      detalii: 'Îmi place foarte mult să învăț lucruri noi.',
+      observații: 'Țineți cont de toate aspectele menționate.',
+    };
+    const publicKey = process.env.PUBLIC_KEY;
+    const privateKey = process.env.PRIVATE_KEY;
+
+    // Act
+    const { envKey, envData } = encrypt(publicKey, JSON.stringify(data));
+    const decryptedData = JSON.parse(decrypt(privateKey, envKey, envData));
+
+    // Assert
+    expect(decryptedData).toEqual(data);
+  });
 });

@@ -24,7 +24,7 @@ const encrypt = (certificatePem, data) => {
 
   const cipher = forge.cipher.createCipher('AES-CBC', key);
   cipher.start({ iv });
-  cipher.update(forge.util.createBuffer(data));
+  cipher.update(forge.util.createBuffer(data, 'utf8'));
   cipher.finish();
   const encryptedData = cipher.output.getBytes();
 

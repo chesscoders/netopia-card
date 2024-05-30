@@ -20,7 +20,10 @@ const decrypt = (privateKeyPem, envKey, encryptedData) => {
   decipher.start({ iv });
   decipher.update(forge.util.createBuffer(forge.util.decode64(encryptedData)));
   decipher.finish();
-  return decipher.output.toString();
+
+  const outputBytes = decipher.output.getBytes();
+  const outputBuffer = Buffer.from(outputBytes, 'binary');
+  return outputBuffer.toString('utf8');
 };
 
 module.exports = decrypt;
