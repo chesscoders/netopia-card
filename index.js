@@ -244,11 +244,14 @@ class Netopia {
       payment: this.payment,
     };
 
-    requestData.config.notifyUrl = new URL('notify', this.apiBaseUrl).href;
+    const apiBaseUrl = this.apiBaseUrl.replace(/\/+$/, '');
+    requestData.config.notifyUrl = new URL('notify', apiBaseUrl + '/').href;
+    requestData.config.redirectUrl = new URL('authorize', apiBaseUrl + '/').href;
     requestData.order.posSignature = this.posSignature;
 
     const requiredFields = [
       { field: requestData.config.notifyUrl, name: 'Notify URL' },
+      { field: requestData.config.redirectUrl, name: 'Redirect URL' },
       { field: requestData.config.language, name: 'Language' },
       { field: requestData.payment.instrument?.account, name: 'Account number' },
       { field: requestData.payment.instrument?.expMonth, name: 'Expiration month' },
@@ -272,7 +275,7 @@ class Netopia {
 
     try {
       const response = await this.sendRequest(url, 'POST', requestData);
-      return response;
+      return { error: response.error };
     } catch (error) {
       console.error('Error initiating payment:', error.message);
       throw error;
