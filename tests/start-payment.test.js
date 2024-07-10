@@ -81,11 +81,15 @@ describe('Start payment', () => {
     };
 
     // Act
-    const response = await netopia.startPayment(requestData);
+
+    netopia.setOrderData(requestData.order);
+
+    const { response } = await netopia.startPayment();
 
     // Assert
     expect(response).toBeDefined();
     expect(response.error).toBeDefined();
-    expect(response.error.code).toBe('00');
+    expect(response.error.code).toBe('101');
+    expect(response.payment.paymentURL).toBeDefined();
   }, 10000);
 });

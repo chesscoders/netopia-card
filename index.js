@@ -52,12 +52,16 @@ function isPaymentError(errorCode) {
 class Netopia {
   constructor({
     apiBaseUrl = process.env.API_BASE_URL,
+    redirectUrl = process.env.REDIRECT_URL,
+    notifyUrl = process.env.NOTIFY_URL,
     apiKey = process.env.NETOPIA_API_KEY,
     posSignature = process.env.NETOPIA_SIGNATURE,
     sandbox = process.env.NODE_ENV !== 'production',
   } = {}) {
     this.apiBaseUrl = apiBaseUrl;
     this.apiKey = apiKey;
+    this.redirectUrl = redirectUrl;
+    this.notifyUrl = notifyUrl;
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
       : 'https://secure.mobilpay.ro/pay';
@@ -231,9 +235,18 @@ class Netopia {
   }
 
   async startPayment() {
-    if (!this.apiBaseUrl) {
-      throw new Error('API URL is required');
+    // if (!this.apiBaseUrl) {
+    //   throw new Error('API URL is required');
+    // }
+
+    if (!this.notifyUrl) {
+      throw new Error('Notify URL is required');
     }
+
+    if (!this.redirectUrl) {
+      throw new Error('Redirect URL is required');
+    }
+
     if (!this.posSignature) {
       throw new Error('POS signature is required');
     }
@@ -244,19 +257,18 @@ class Netopia {
       payment: this.payment,
     };
 
-    const apiBaseUrl = this.apiBaseUrl.replace(/\/+$/, '');
-    requestData.config.notifyUrl = new URL('notify', apiBaseUrl + '/').href;
-    requestData.config.redirectUrl = new URL('authorize', apiBaseUrl + '/').href;
+    // const apiBaseUrl = this.apiBaseUrl.replace(/\/+$/, '');
+    // requestData.config.notifyUrl = new URL('notify', apiBaseUrl + '/').href;
+    // requestData.config.redirectUrl = new URL('authorize', apiBaseUrl + '/').href;
+
+    requestData.config.notifyUrl = new URL(this.notifyUrl).href;
+    requestData.config.redirectUrl = new URL(this.redirectUrl).href;
     requestData.order.posSignature = this.posSignature;
 
     const requiredFields = [
       { field: requestData.config.notifyUrl, name: 'Notify URL' },
       { field: requestData.config.redirectUrl, name: 'Redirect URL' },
       { field: requestData.config.language, name: 'Language' },
-      { field: requestData.payment.instrument?.account, name: 'Account number' },
-      { field: requestData.payment.instrument?.expMonth, name: 'Expiration month' },
-      { field: requestData.payment.instrument?.expYear, name: 'Expiration year' },
-      { field: requestData.payment.instrument?.secretCode, name: 'Secret code' },
       { field: requestData.order.posSignature, name: 'POS signature' },
       { field: requestData.order.dateTime, name: 'Date & time' },
       { field: requestData.order.orderID, name: 'Order ID' },
@@ -275,7 +287,7 @@ class Netopia {
 
     try {
       const response = await this.sendRequest(url, 'POST', requestData);
-      return { error: response.error };
+      return { response };
     } catch (error) {
       console.error('Error initiating payment:', error.message);
       throw error;
