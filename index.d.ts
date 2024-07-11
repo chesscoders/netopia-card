@@ -164,11 +164,6 @@ type PaymentBinding = {
 };
 
 /**
- * A callback type for asynchronously processing payment notifications.
- */
-type NotificationCallback = (payload: NotifyRequest) => Promise<void>;
-
-/**
  * Defines the type for an Express request object.
  */
 interface Request {
@@ -192,26 +187,6 @@ interface Response {
  * Defines the type for the next function in Express middleware.
  */
 type NextFunction = (err?: any) => void;
-
-/**
- * Defines the type for middleware functions in Express. Middleware functions can perform the following tasks:
- * - Execute any code.
- * - Make changes to the request and the response objects.
- * - End the request-response cycle.
- * - Call the next middleware in the stack.
- * @param req The HTTP request object.
- * @param res The HTTP response object.
- * @param next A callback to signal Express to move to the next middleware function in the stack.
- */
-type Middleware = (req: Request, res: Response, next: NextFunction) => void;
-
-/**
- * Defines the type for request handler functions in Express. Request handlers are similar to middleware but are typically
- * used to terminate the request-response cycle by sending a response back to the client.
- * @param req The HTTP request object.
- * @param res The HTTP response object.
- */
-type RequestHandler = (req: Request, res: Response) => void | Promise<void>;
 
 /**
  * Interface representing the information collected from the browser and window.
@@ -265,32 +240,32 @@ interface BrowserData {
  * Represents the order data needed to create a new order.
  */
 interface OrderData {
-  orderID: string;
   amount: number;
-  currency?: string;
-  dateTime?: string;
-  description?: string;
   billing: {
-    email?: string;
-    phone?: string;
-    firstName?: string;
-    lastName?: string;
     city?: string;
     country?: number;
     countryName?: string;
-    state?: string;
-    postalCode?: string;
     details?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    postalCode?: string;
+    state?: string;
   };
+  currency?: string;
+  dateTime?: string;
+  description?: string;
+  orderID: string;
 }
 
 /**
  * Represents the data for products included in an order.
  */
 interface ProductData {
-  name: string;
-  code: string;
   category: string;
+  code: string;
+  name: string;
   price: number;
   vat: number;
 }
@@ -302,44 +277,6 @@ interface ProductData {
  * @returns BrowserInfo An object containing detailed browser and device information.
  */
 export function collectBrowserInfo(navigator: Navigator, window: Window): BrowserInfo;
-
-/**
- * Decrypts data that was encrypted with an RSA public key using AES-CBC encryption.
- * The function uses the private key to first decrypt the AES key and IV, and then uses them
- * to decrypt the actual data.
- * @param privateKeyPem The PEM-encoded RSA private key.
- * @param envKey The base64-encoded encrypted AES key and IV.
- * @param encryptedData The base64-encoded data encrypted with the AES key.
- * @returns The decrypted string.
- */
-export function decrypt(privateKeyPem: string, envKey: string, encryptedData: string): string;
-
-/**
- * Decrypts the request body of an incoming request.
- * @param req The incoming request object.
- * @param res The outgoing response object.
- * @param next The next middleware function in the stack.
- */
-export function decryptRequestBody(req: Request, res: Response, next: NextFunction): void;
-
-/**
- * Encrypts data using an RSA public key for the AES key and IV, and AES-CBC for the actual data encryption.
- * The function generates a random AES key and IV, encrypts the data, and then encrypts the AES key and IV using the RSA public key.
- * @param certificatePem The PEM-encoded certificate containing the RSA public key.
- * @param data The plaintext data to encrypt.
- * @returns An object containing base64-encoded strings of the encrypted key (envKey) and the encrypted data (envData).
- */
-export function encrypt(certificatePem: string, data: string): { envKey: string; envData: string };
-
-/**
- * Asynchronous function that generates a self-signed certificate and its corresponding private key.
- * @param options Options for certificate generation.
- * @returns A promise that resolves with the generated certificate and private key.
- */
-export function generateKeys(options: {
-  serialNumber: string;
-  attrs: { name: string; value: string }[];
-}): Promise<{ privateKey: string; publicKey: string }>;
 
 /**
  * Determines if a given error code represents a payment error.
@@ -359,7 +296,9 @@ export declare class Netopia {
   constructor(config: {
     apiBaseUrl?: string;
     apiKey?: string;
+    notifyUrl?: string;
     posSignature?: string;
+    redirectUrl?: string;
     sandbox?: boolean;
   });
 
@@ -395,17 +334,13 @@ export declare class Netopia {
    * @returns A promise that resolves with the details of the initiated payment.
    */
   startPayment(): Promise<any>;
-
-  /**
-   * Creates an Express route array for handling payment notifications.
-   * This method configures a route to receive payment notifications, parse the request body,
-   * validate it, and then invoke a callback function with the parsed data. If the request is invalid,
-   * it responds with an error code. Otherwise, it calls the provided callback with the notification data
-   * and responds to the requestor to acknowledge the notification.
-   * @param callback The function to call with the parsed notification data.
-   * It receives a single parameter of type `NotifyRequest` which contains the notification details.
-   * @returns An array containing the route path, middleware for parsing the raw text body,
-   * and the route handler function configured for the `/notify` endpoint.
-   */
-  createNotifyRoute(callback: NotificationCallback): [string, Middleware, RequestHandler];
 }
+
+/**
+ * Middleware function to parse raw text body in HTTP requests.
+ *
+ * @param {Request} req - The Express request object.
+ * @param {Response} res - The Express response object.
+ * @param {NextFunction} next - The next middleware function.
+ */
+export function rawTextBodyParser(req: Request, res: Response, next: NextFunction): void;

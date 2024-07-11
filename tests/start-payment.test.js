@@ -1,35 +1,15 @@
 const { Netopia } = require('..');
 
 describe('Start payment', () => {
+  let netopia;
+
+  beforeAll(() => {
+    netopia = new Netopia({ sandbox: true });
+  });
+
   test('should start a payment', async () => {
     // Arrange
-    const netopia = new Netopia({ sandbox: true });
     const requestData = {
-      config: {
-        emailTemplate: '',
-        emailSubject: '',
-        cancelUrl: 'https://www.my.domain/my_cancel_url',
-        redirectUrl: 'https://www.my.domain/my_redirect_url',
-        language: 'ro',
-      },
-      payment: {
-        options: {
-          installments: 0,
-          bonus: 0,
-        },
-        instrument: {
-          type: 'card',
-          account: '9900004810225098',
-          expMonth: 12,
-          expYear: new Date().getFullYear() + 1,
-          secretCode: '111',
-          token: '',
-        },
-        data: {
-          property1: 'string',
-          property2: 'string',
-        },
-      },
       order: {
         ntpID: '',
         dateTime: new Date().toISOString(),
@@ -81,11 +61,15 @@ describe('Start payment', () => {
     };
 
     // Act
-    const response = await netopia.startPayment(requestData);
+    netopia.setOrderData(requestData.order);
+    netopia.setProductsData(requestData.order.products);
+    const response = await netopia.startPayment();
+    console.log('response:', response);
 
     // Assert
     expect(response).toBeDefined();
     expect(response.error).toBeDefined();
-    expect(response.error.code).toBe('00');
+    expect(response.error.code).toBe('101');
+    expect(response.payment.paymentURL).toBeDefined();
   }, 10000);
 });

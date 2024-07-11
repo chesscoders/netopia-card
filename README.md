@@ -2,7 +2,7 @@
 
 **Version 2 Update Notice**: This version (v2) introduces significant changes from v1, including configuration options and methods. Please see the migration guide below for details.
 
-Netopia Card is a lightweight NodeJS library designed to integrate the [Netopia mobilPay](https://netopia-payments.com) payment gateway into your projects with ease. It allows for the construction of Netopia mobilPay requests from input data, supports split payments, and validates Netopia mobilPay responses using the private key associated with your account.
+Netopia Card is a lightweight NodeJS library designed to integrate the [Netopia mobilPay](https://netopia-payments.com) payment gateway into your projects with ease. It allows for the construction of Netopia mobilPay requests from input data and validates Netopia mobilPay responses using the private key associated with your account.
 
 ## Installation
 
@@ -17,8 +17,11 @@ yarn add netopia-card
 ## Features
 
 - Easy-to-use API for initiating card payments and handling callbacks
-- Support for split payments, allowing a portion of the payment to be sent to another account
 - Robust validation of Netopia mobilPay responses for secure transaction processing
+
+## Note
+
+Currently, split payments and setting custom parameters are not available due to the transition from v1 to v2, but these features will be available soon.
 
 ## Configuration
 
@@ -27,6 +30,8 @@ Before using Netopia Card, set your environment variables based on the credentia
 ```sh
 API_BASE_URL="https://example.com/"
 NETOPIA_API_KEY="Your_API_Key_Here"
+NETOPIA_CONFIRM_URL="https://example.com/api/payment/notify"
+NETOPIA_RETURN_URL="https://example.com/redirect"
 NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
 ```
 
@@ -44,147 +49,155 @@ Create a new instance of Netopia by providing your API key and other configurati
 
 ```javascript
 const netopia = new Netopia({
-  apiKey: 'Your_API_Key_Here',
+  apiKey: process.env.NETOPIA_API_KEY,
   sandbox: true, // Use `false` for production
 });
 ```
 
-Initiate a payment by calling the `startPayment` method with the necessary payment details:
+### Frontend Integration
+
+To handle the payment redirection in a React application using Next.js:
 
 ```javascript
-const { decryptRequestBody } = require('netopia-card');
+import { useRouter } from 'next/router';
+import { useEffect, useRef } from 'react';
 
-router.post('/payment/start', decryptRequestBody, async function (req, res) {
+const NetopiaRedirect = ({ error, payment }) => {
+  const router = useRouter();
+  const ref = useRef();
+
+  useEffect(() => {
+    if (error?.code === '101' && payment?.paymentURL) {
+      ref.current.click();
+    }
+  }, [error, payment]);
+
+  if (!error?.code === '101' || !payment?.paymentURL) {
+    return null;
+  }
+
+  return (
+    <button
+      className="hidden"
+      onClick={() => router.push(payment.paymentURL)}
+      ref={ref}
+      type="button"
+    />
+  );
+};
+
+export default NetopiaRedirect;
+```
+
+### Integrate the form and payment handling logic
+
+Here's an example of how to integrate the form and payment handling logic using Formik and a simple form component:
+
+```javascript
+import { useState } from 'react';
+import { Formik, Form, Field } from 'formik';
+import { NetopiaRedirect } from './NetopiaRedirect';
+import { collectBrowserInfo } from 'netopia-card';
+import { useMutation } from 'react-query';
+import axios from 'axios';
+
+const PaymentForm = () => {
+  const [netopia, setNetopia] = useState({});
+
+  const mutation = useMutation((payload) => axios.post('/api/payment/start', payload));
+
+  const handleSubmit = async (values) => {
+    const payload = {
+      ...collectBrowserInfo(navigator, window),
+      invoiceData: values,
+    };
+    try {
+      const { data } = await mutation.mutateAsync(payload);
+      setNetopia(data);
+    } catch (error) {
+      console.error('Payment initiation failed:', error);
+    }
+  };
+
+  return (
+    <Formik initialValues={{ firstName: '', lastName: '', email: '' }} onSubmit={handleSubmit}>
+      <Form>
+        <div>
+          <label htmlFor="firstName">First Name</label>
+          <Field id="firstName" name="firstName" placeholder="John" />
+        </div>
+        <div>
+          <label htmlFor="lastName">Last Name</label>
+          <Field id="lastName" name="lastName" placeholder="Doe" />
+        </div>
+        <div>
+          <label htmlFor="email">Email</label>
+          <Field id="email" name="email" type="email" placeholder="john@example.com" />
+        </div>
+        <button type="submit">Submit</button>
+        <NetopiaRedirect {...netopia} />
+      </Form>
+    </Formik>
+  );
+};
+
+export default PaymentForm;
+```
+
+### Backend API
+
+To start a payment, use the `startPayment` method with the necessary payment details:
+
+```javascript
+const express = require('express');
+const { Netopia } = require('netopia-card');
+
+const router = express.Router();
+
+router.post('/api/payment/start', async (req, res) => {
+  const netopia = new Netopia({
+    apiKey: process.env.NETOPIA_API_KEY,
+    sandbox: true,
+  });
+
   const requestData = {
-    config: {
-      emailTemplate: '',
-      emailSubject: '',
-      language: 'ro',
-    },
-    payment: {
-      options: {
-        installments: 0,
-        bonus: 0,
-      },
-      instrument: {
-        type: 'card',
-        account: '9900009184214768',
-        expMonth: 12,
-        expYear: 2022,
-        secretCode: '111',
-        token: '',
-      },
-      data: {
-        BROWSER_USER_AGENT:
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36',
-        BROWSER_TZ: 'Europe/Bucharest',
-        BROWSER_COLOR_DEPTH: '32',
-        BROWSER_JAVA_ENABLED: 'true',
-        BROWSER_LANGUAGE: 'en-US,en;q=0.9',
-        BROWSER_TZ_OFFSET: '0',
-        BROWSER_SCREEN_WIDTH: '1200',
-        BROWSER_SCREEN_HEIGHT: '1400',
-        BROWSER_PLUGINS: 'Chrome PDF Plugin, Chrome PDF Viewer, Native Client',
-        MOBILE: 'false',
-        SCREEN_POINT: 'false',
-        OS: 'macOS',
-        OS_VERSION: '10.15.7 (32-bit)',
-        IP_ADDRESS: '127.0.0.1',
-      },
-    },
-    order: {
-      ntpID: '',
-      posSignature: 'XXXX-XXXX-XXXX-XXXX-XXXX',
-      dateTime: '2023-08-24T14:15:22Z',
-      description: 'Some order description',
-      orderID: 'Merchant order Id',
-      amount: 1,
-      currency: 'RON',
-      billing: {
-        email: 'user@example.com',
-        phone: '+407xxxxxxxx',
-        firstName: 'First',
-        lastName: 'Last',
-        city: 'City',
-        country: 642,
-        countryName: 'Romania',
-        state: 'State',
-        postalCode: 'Zip',
-        details: '',
-      },
-      shipping: {
-        email: 'user@example.com',
-        phone: '+407xxxxxxxx',
-        firstName: 'First',
-        lastName: 'Last',
-        city: 'City',
-        country: 642,
-        state: 'State',
-        postalCode: 'Zip',
-        details: '',
-      },
-      products: [
-        {
-          name: 'string',
-          code: 'SKU',
-          category: 'category',
-          price: 1,
-          vat: 19,
-        },
-      ],
-      installments: {
-        selected: 0,
-        available: [0],
-      },
-      data: {
-        property1: 'string',
-        property2: 'string',
-      },
-    },
+    // Define your request data here
   };
 
   try {
     const response = await netopia.startPayment(requestData);
-    console.log(response);
-
-    if (response.error?.code === '00') {
-      res.status(200).json(response);
-    } else {
-      res.status(400).json(response);
-    }
+    res.status(200).json(response);
   } catch (error) {
-    console.error('Error', error.message);
     res.status(500).json({ message: error.message });
   }
 });
+
+module.exports = router;
 ```
 
 Handle payment notifications by creating a notification route:
 
 ```javascript
 const express = require('express');
+const { rawTextBodyParser } = require('netopia-card');
+const { confirmOrder } = require('./orderHandlers');
+
 const app = express();
 
-app.use(
-  ...netopia.createNotifyRoute(({ payment, order }) => {
-    console.log('Order ID:', order?.orderID);
-
-    switch (payment?.status) {
-      case 3:
-        console.log('Payment was successful');
-        break;
-      case 5:
-        console.log('Payment was confirmed');
-        break;
-      case 12:
-        console.log('Payment was rejected');
-        break;
-      default:
-        console.log('Payment status unknown');
-        break;
+app.post('/api/payment/notify', rawTextBodyParser, async (req, res) => {
+  try {
+    const { order, payment } = JSON.parse(req.body);
+    if (!order || !payment) {
+      throw new Error('Invalid request body');
     }
-  })
-);
+
+    await confirmOrder({ order, payment });
+
+    res.status(200).json({ errorCode: 0 });
+  } catch (error) {
+    res.status(400).json({ errorCode: 1 });
+  }
+});
 
 app.listen(3000, () => console.log('Server running on port 3000'));
 ```

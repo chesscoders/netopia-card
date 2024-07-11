@@ -1,6 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
-const { decrypt, encrypt, generateKeys, pick, validateField } = require('./functions');
+const { pick, validateField } = require('./functions');
+const { rawTextBodyParser } = require('./middlewares');
 
 function collectBrowserInfo(navigator, window) {
   return {
@@ -20,31 +21,6 @@ function collectBrowserInfo(navigator, window) {
   };
 }
 
-function decryptRequestBody(req, res, next) {
-  try {
-    const { envKey, envData } = req.body;
-    if (!envKey || !envData) {
-      throw new Error('Invalid request body');
-    }
-
-    const privateKey = process.env.PRIVATE_KEY;
-    if (!privateKey) {
-      throw new Error('Private key is required');
-    }
-
-    const decryptedData = decrypt(privateKey, envKey, envData);
-    if (!decryptedData) {
-      throw new Error('Failed to decrypt data');
-    }
-
-    req.body = JSON.parse(decryptedData);
-    next();
-  } catch (error) {
-    console.error('Error decrypting request body:', error);
-    res.status(400).json({ errorCode: 1 });
-  }
-}
-
 function isPaymentError(errorCode) {
   return errorCode !== '00';
 }
@@ -53,7 +29,9 @@ class Netopia {
   constructor({
     apiBaseUrl = process.env.API_BASE_URL,
     apiKey = process.env.NETOPIA_API_KEY,
+    notifyUrl = process.env.NETOPIA_CONFIRM_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
+    redirectUrl = process.env.NETOPIA_RETURN_URL,
     sandbox = process.env.NODE_ENV !== 'production',
   } = {}) {
     this.apiBaseUrl = apiBaseUrl;
@@ -61,10 +39,12 @@ class Netopia {
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
       : 'https://secure.mobilpay.ro/pay';
+    this.notifyUrl = notifyUrl;
     this.posSignature = posSignature;
+    this.redirectUrl = redirectUrl;
     this.config = { language: 'ro' };
-    this.payment = { instrument: { type: 'card' } };
     this.order = {};
+    this.payment = {};
   }
 
   setPaymentData(paymentData) {
@@ -99,31 +79,31 @@ class Netopia {
     }
 
     const requiredFields = [
-      { field: reqBody.BROWSER_USER_AGENT, name: 'User agent' },
-      { field: reqBody.BROWSER_TZ, name: 'Timezone' },
       { field: reqBody.BROWSER_COLOR_DEPTH, name: 'Color depth' },
       { field: reqBody.BROWSER_LANGUAGE, name: 'Language' },
-      { field: reqBody.BROWSER_SCREEN_WIDTH, name: 'Screen width' },
       { field: reqBody.BROWSER_SCREEN_HEIGHT, name: 'Screen height' },
+      { field: reqBody.BROWSER_SCREEN_WIDTH, name: 'Screen width' },
+      { field: reqBody.BROWSER_TZ, name: 'Timezone' },
+      { field: reqBody.BROWSER_USER_AGENT, name: 'User agent' },
       { field: reqBody.MOBILE, name: 'Mobile' },
     ];
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
 
     const browserFields = [
-      'BROWSER_USER_AGENT',
-      'BROWSER_TZ',
       'BROWSER_COLOR_DEPTH',
       'BROWSER_JAVA_ENABLED',
       'BROWSER_LANGUAGE',
-      'BROWSER_TZ_OFFSET',
-      'BROWSER_SCREEN_WIDTH',
-      'BROWSER_SCREEN_HEIGHT',
       'BROWSER_PLUGINS',
+      'BROWSER_SCREEN_HEIGHT',
+      'BROWSER_SCREEN_WIDTH',
+      'BROWSER_TZ_OFFSET',
+      'BROWSER_TZ',
+      'BROWSER_USER_AGENT',
       'MOBILE',
-      'SCREEN_POINT',
-      'OS',
       'OS_VERSION',
+      'OS',
+      'SCREEN_POINT',
     ];
 
     this.payment.data = browserFields.reduce((data, field) => {
@@ -142,36 +122,36 @@ class Netopia {
     }
 
     const requiredFields = [
-      { field: orderData.orderID, name: 'Order ID' },
       { field: orderData.amount, name: 'Amount' },
       { field: orderData.billing, name: 'Billing details' },
       { field: orderData.billing?.email, name: 'Email' },
-      { field: orderData.billing?.phone, name: 'Phone' },
       { field: orderData.billing?.firstName, name: 'First name' },
       { field: orderData.billing?.lastName, name: 'Last name' },
+      { field: orderData.billing?.phone, name: 'Phone' },
+      { field: orderData.orderID, name: 'Order ID' },
     ];
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
 
     this.order = {
       ...this.order,
-      dateTime: orderData.dateTime || new Date().toISOString(),
-      description: orderData.description || '',
-      orderID: orderData.orderID,
       amount: Number(orderData.amount),
-      currency: orderData.currency || 'RON',
       billing: {
-        email: orderData.billing?.email,
-        phone: orderData.billing?.phone,
-        firstName: orderData.billing?.firstName,
-        lastName: orderData.billing?.lastName,
         city: orderData.billing?.city || '',
         country: Number(orderData.billing?.country || 642),
         countryName: orderData.billing?.countryName || 'Romania',
-        state: orderData.billing?.state || '',
-        postalCode: orderData.billing?.postalCode || '',
         details: orderData.billing?.details || '',
+        email: orderData.billing?.email,
+        firstName: orderData.billing?.firstName,
+        lastName: orderData.billing?.lastName,
+        phone: orderData.billing?.phone,
+        postalCode: orderData.billing?.postalCode || '',
+        state: orderData.billing?.state || '',
       },
+      currency: orderData.currency || 'RON',
+      dateTime: orderData.dateTime || new Date().toISOString(),
+      description: orderData.description || '',
+      orderID: orderData.orderID,
     };
   }
 
@@ -182,17 +162,17 @@ class Netopia {
 
     this.order.products = productsData.map((product) => {
       if (
-        !product.name ||
-        !product.code ||
         !product.category ||
+        !product.code ||
+        !product.name ||
         product.price == null ||
         product.vat == null
       ) {
         console.warn('Missing product details', product);
         return {
-          name: product.name || 'Unnamed Product',
-          code: product.code || 'No Code',
           category: product.category || 'No Category',
+          code: product.code || 'No Code',
+          name: product.name || 'Unnamed Product',
           price: product.price || 0,
           vat: product.vat || 0,
         };
@@ -231,11 +211,14 @@ class Netopia {
   }
 
   async startPayment() {
-    if (!this.apiBaseUrl) {
-      throw new Error('API URL is required');
+    if (!this.notifyUrl) {
+      throw new Error('Notify URL is required');
     }
     if (!this.posSignature) {
       throw new Error('POS signature is required');
+    }
+    if (!this.redirectUrl) {
+      throw new Error('Redirect URL is required');
     }
 
     const requestData = {
@@ -244,29 +227,24 @@ class Netopia {
       payment: this.payment,
     };
 
-    const apiBaseUrl = this.apiBaseUrl.replace(/\/+$/, '');
-    requestData.config.notifyUrl = new URL('notify', apiBaseUrl + '/').href;
-    requestData.config.redirectUrl = new URL('authorize', apiBaseUrl + '/').href;
+    requestData.config.notifyUrl = new URL(this.notifyUrl).href;
+    requestData.config.redirectUrl = new URL(this.redirectUrl).href;
     requestData.order.posSignature = this.posSignature;
 
     const requiredFields = [
+      { field: requestData.config.language, name: 'Language' },
       { field: requestData.config.notifyUrl, name: 'Notify URL' },
       { field: requestData.config.redirectUrl, name: 'Redirect URL' },
-      { field: requestData.config.language, name: 'Language' },
-      { field: requestData.payment.instrument?.account, name: 'Account number' },
-      { field: requestData.payment.instrument?.expMonth, name: 'Expiration month' },
-      { field: requestData.payment.instrument?.expYear, name: 'Expiration year' },
-      { field: requestData.payment.instrument?.secretCode, name: 'Secret code' },
-      { field: requestData.order.posSignature, name: 'POS signature' },
-      { field: requestData.order.dateTime, name: 'Date & time' },
-      { field: requestData.order.orderID, name: 'Order ID' },
       { field: requestData.order.amount, name: 'Amount' },
-      { field: requestData.order.currency, name: 'Currency' },
       { field: requestData.order.billing, name: 'Billing details' },
       { field: requestData.order.billing?.email, name: 'Email' },
-      { field: requestData.order.billing?.phone, name: 'Phone' },
       { field: requestData.order.billing?.firstName, name: 'First name' },
       { field: requestData.order.billing?.lastName, name: 'Last name' },
+      { field: requestData.order.billing?.phone, name: 'Phone' },
+      { field: requestData.order.currency, name: 'Currency' },
+      { field: requestData.order.dateTime, name: 'Date & time' },
+      { field: requestData.order.orderID, name: 'Order ID' },
+      { field: requestData.order.posSignature, name: 'POS signature' },
     ];
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
@@ -275,58 +253,17 @@ class Netopia {
 
     try {
       const response = await this.sendRequest(url, 'POST', requestData);
-      return { error: response.error };
+      return response;
     } catch (error) {
       console.error('Error initiating payment:', error.message);
       throw error;
     }
   }
-
-  rawTextBodyParser(req, _res, next) {
-    if (!req.headers['content-type'] || req.headers['content-type'] === 'text/plain') {
-      let data = '';
-      req.on('data', (chunk) => {
-        data += chunk;
-      });
-      req.on('end', () => {
-        req.body = data;
-        next();
-      });
-    } else {
-      next();
-    }
-  }
-
-  createNotifyRoute(callback) {
-    return [
-      '/notify',
-      this.rawTextBodyParser,
-      async (req, res) => {
-        try {
-          const { order, payment } = JSON.parse(req.body);
-          if (!order || !payment) {
-            throw new Error('Invalid request body');
-          }
-
-          await callback({ order, payment });
-
-          res.header('Content-Type', 'application/json');
-          res.status(200).json({ errorCode: 0 });
-        } catch (error) {
-          console.error('Error', error.message);
-          res.status(400).json({ errorCode: 1 });
-        }
-      },
-    ];
-  }
 }
 
 module.exports = {
   collectBrowserInfo,
-  decrypt,
-  decryptRequestBody,
-  encrypt,
-  generateKeys,
   isPaymentError,
   Netopia,
+  rawTextBodyParser,
 };
