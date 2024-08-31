@@ -299,6 +299,7 @@ export declare class Netopia {
     notifyUrl?: string;
     posSignature?: string;
     redirectUrl?: string;
+    language?: string;
     sandbox?: boolean;
   });
 

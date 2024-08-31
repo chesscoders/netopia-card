@@ -32,6 +32,7 @@ class Netopia {
     notifyUrl = process.env.NETOPIA_CONFIRM_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
     redirectUrl = process.env.NETOPIA_RETURN_URL,
+    language = 'ro',
     sandbox = process.env.NODE_ENV !== 'production',
   } = {}) {
     this.apiBaseUrl = apiBaseUrl;
@@ -42,7 +43,7 @@ class Netopia {
     this.notifyUrl = notifyUrl;
     this.posSignature = posSignature;
     this.redirectUrl = redirectUrl;
-    this.config = { language: 'ro' };
+    this.config = { language };
     this.order = {};
     this.payment = {};
   }
