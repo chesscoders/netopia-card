@@ -8,7 +8,7 @@ function pick(object, paths) {
   const result = {};
 
   for (const field of paths) {
-    if (object.hasOwnProperty(field)) {
+    if (Object.prototype.hasOwnProperty.call(object, field)) {
       result[field] = object[field];
     }
   }
