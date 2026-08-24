@@ -18,7 +18,7 @@ recorded in the [commit history](https://github.com/chesscoders/netopia-card/com
   require it: with `order.billing.phone` missing, the start request still answers `error.code 101`
   with a `payment.paymentURL`, and the NETOPIA page shows an empty phone field (placeholder
   `07xxxxxxxx`) and asks the customer for the number itself.
-- An empty or whitespace-only `billing.phone` no longer throws — the key is omitted from the request
+- An empty or whitespace-only `billing.phone` no longer throws - the key is omitted from the request
   instead, so neither `""` nor `null` is sent. Because the library used to require a phone,
   integrators without a phone field in their form passed placeholders such as `-`, which the NETOPIA
   page rejects with "Numărul de telefon nu este valid", blocking the payment on its first step.
@@ -27,7 +27,7 @@ NETOPIA's [OpenAPI spec](https://secure.sandbox.netopia-payments.com/spec) lists
 under `Address.required`, but the API accepts the key being absent: it answers 200 with
 `error.code 101` and a `payment.paymentURL`, and the hosted page asks the customer for the number
 (empty field, placeholder `07xxxxxxxx`). Verified on sandbox. A strict contract check against the
-spec (`prism --errors`) will therefore flag a missing phone as invalid — that is a known spec/API
+spec (`prism --errors`) will therefore flag a missing phone as invalid - that is a known spec/API
 divergence, not a bug in this library.
 
 This is the only behavior change: a request that carries a valid phone today is byte-identical, no
