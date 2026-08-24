@@ -74,6 +74,7 @@ type Order = {
   products?: Product[]; // Optional list of products included in the order.
   installments?: Installments; // Optional installment options for the order.
   data?: Attributes; // Optional additional attributes/data for the order.
+  clientID?: string; // Optional merchant-side client identifier.
 };
 
 /**
@@ -204,6 +205,7 @@ interface BrowserInfo {
   BROWSER_PLUGINS: string;
   MOBILE: boolean;
   SCREEN_POINT: string;
+  SCREEN_PRINT: string;
   OS: string;
   OS_VERSION: string;
 }
@@ -219,22 +221,28 @@ interface PaymentData {
 }
 
 /**
+ * A single browser data value, as collected by collectBrowserInfo or read off a request body.
+ */
+type BrowserValue = string | number | boolean;
+
+/**
  * Represents the browser data collected from the user to aid in fraud prevention.
  */
 interface BrowserData {
-  BROWSER_USER_AGENT?: string;
-  BROWSER_TZ?: string;
-  BROWSER_COLOR_DEPTH?: string;
-  BROWSER_JAVA_ENABLED?: string;
-  BROWSER_LANGUAGE?: string;
-  BROWSER_TZ_OFFSET?: string;
-  BROWSER_SCREEN_WIDTH?: string;
-  BROWSER_SCREEN_HEIGHT?: string;
-  BROWSER_PLUGINS?: string;
-  MOBILE?: string;
-  SCREEN_POINT?: string;
-  OS?: string;
-  OS_VERSION?: string;
+  BROWSER_USER_AGENT?: BrowserValue;
+  BROWSER_TZ?: BrowserValue;
+  BROWSER_COLOR_DEPTH?: BrowserValue;
+  BROWSER_JAVA_ENABLED?: BrowserValue;
+  BROWSER_LANGUAGE?: BrowserValue;
+  BROWSER_TZ_OFFSET?: BrowserValue;
+  BROWSER_SCREEN_WIDTH?: BrowserValue;
+  BROWSER_SCREEN_HEIGHT?: BrowserValue;
+  BROWSER_PLUGINS?: BrowserValue;
+  MOBILE?: BrowserValue;
+  SCREEN_POINT?: BrowserValue;
+  SCREEN_PRINT?: BrowserValue;
+  OS?: BrowserValue;
+  OS_VERSION?: BrowserValue;
 }
 
 /**
@@ -258,6 +266,26 @@ interface OrderData {
   dateTime?: string;
   description?: string;
   orderID: string;
+  shipping?: Partial<Address>;
+  data?: Attributes;
+  clientID?: string;
+}
+
+/**
+ * Represents the payment options for an order.
+ */
+interface PaymentOptionsData {
+  installments?: number; // Number of installments; the API expects an integer.
+  bonus?: number; // Bonus points; the API expects an integer.
+}
+
+/**
+ * Represents the data needed to authorize a 3-D Secure authenticated payment.
+ */
+interface VerifyAuthData {
+  authenticationToken: string; // The authenticationToken received in the start response.
+  ntpID: string; // The NETOPIA ID received in the start response.
+  formData: Attributes; // Every field received on the redirectUrl, unaltered.
 }
 
 /**
@@ -280,7 +308,10 @@ interface ProductData {
 export function collectBrowserInfo(navigator: Navigator, window: Window): BrowserInfo;
 
 /**
- * Determines if a given error code represents a payment error.
+ * Determines if a given error code represents a payment error: only '00' means approved.
+ * '100' (3-D Secure authentication required) and '101' (redirect to payment.paymentURL) are
+ * normal outcomes, but the payment is not settled yet, so both count as errors here. Check
+ * error.code yourself instead of reading a false return value as "payment succeeded".
  * @param errorCode The error code to check.
  * @returns true if the error code represents a payment error; otherwise, false.
  */
@@ -294,22 +325,34 @@ export declare class Netopia {
    * Constructs a new instance of the Netopia class.
    * @param config Configuration options for the Netopia instance.
    */
-  constructor(config: {
-    apiBaseUrl?: string;
+  constructor(config?: {
     apiKey?: string;
     cancelUrl?: string;
     notifyUrl?: string;
     posSignature?: string;
     redirectUrl?: string;
+    timeout?: number;
     language?: string;
     sandbox?: boolean;
   });
+
+  /**
+   * Clears the order and the payment - instrument, options and browser data - so the same
+   * instance can build the next order. The constructor options are kept.
+   */
+  reset(): void;
 
   /**
    * Sets the payment data required for initiating a payment.
    * @param paymentData The payment data including account details and security information.
    */
   setPaymentData(paymentData: PaymentData): void;
+
+  /**
+   * Sets the payment options for the order, such as installments, bonus points and split payments.
+   * @param paymentOptions The payment options to send with the order.
+   */
+  setPaymentOptions(paymentOptions: PaymentOptionsData): void;
 
   /**
    * Sets browser-related data collected from the user, enhancing security and fraud prevention.
@@ -337,6 +380,15 @@ export declare class Netopia {
    * @returns A promise that resolves with the details of the initiated payment.
    */
   startPayment(): Promise<any>;
+
+  /**
+   * Authorizes a payment after the customer completed the 3-D Secure authentication.
+   * Call this when the start response returned error code '100' with a customerAction,
+   * after the customer was sent through customerAction.url.
+   * @param authData The authenticationToken and ntpID from the start response, plus any form data.
+   * @returns A promise that resolves with the details of the authorized payment.
+   */
+  verifyAuth(authData: VerifyAuthData): Promise<any>;
 }
 
 /**

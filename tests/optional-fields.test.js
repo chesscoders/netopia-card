@@ -31,6 +31,18 @@ function sentData(netopia) {
   return netopia.sendRequest.mock.calls[0][2];
 }
 
+const { NETOPIA_CANCEL_URL } = process.env;
+
+beforeEach(() => {
+  delete process.env.NETOPIA_CANCEL_URL;
+});
+
+afterAll(() => {
+  if (NETOPIA_CANCEL_URL != null) {
+    process.env.NETOPIA_CANCEL_URL = NETOPIA_CANCEL_URL;
+  }
+});
+
 describe('Optional billing.phone', () => {
   test('a valid phone is sent unchanged, in the same request as before', async () => {
     // Arrange
@@ -60,6 +72,11 @@ describe('Optional billing.phone', () => {
     ['whitespace', '   '],
     ['null', null],
     ['undefined', undefined],
+    ['an object', {}],
+    ['an array', ['0712345678']],
+    ['a boolean', true],
+    ['NaN', NaN],
+    ['Infinity', Infinity],
   ])('%s is omitted from the payload', async (_name, phone) => {
     // Arrange
     const netopia = stub();
@@ -76,18 +93,6 @@ describe('Optional billing.phone', () => {
 });
 
 describe('Optional config.cancelUrl', () => {
-  const { NETOPIA_CANCEL_URL } = process.env;
-
-  beforeEach(() => {
-    delete process.env.NETOPIA_CANCEL_URL;
-  });
-
-  afterAll(() => {
-    if (NETOPIA_CANCEL_URL != null) {
-      process.env.NETOPIA_CANCEL_URL = NETOPIA_CANCEL_URL;
-    }
-  });
-
   test('is absent when not set', async () => {
     // Arrange
     const netopia = stub();

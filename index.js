@@ -16,27 +16,68 @@ function collectBrowserInfo(navigator, window) {
     BROWSER_PLUGINS: '',
     MOBILE: /Mobi|Android/i.test(navigator.userAgent),
     SCREEN_POINT: 'false',
+    SCREEN_PRINT:
+      `Current Resolution: ${window.screen.width}x${window.screen.height}, ` +
+      `Available Resolution: ${window.screen.availWidth}x${window.screen.availHeight}, ` +
+      `Color Depth: ${window.screen.colorDepth}, Device XDPI: undefined, Device YDPI: undefined`,
     OS: '',
     OS_VERSION: '',
   };
 }
 
+function toNumber(value, name) {
+  const number = typeof value === 'boolean' || String(value).trim() === '' ? NaN : Number(value);
+
+  if (!Number.isFinite(number)) {
+    throw new Error(`Invalid ${name}`);
+  }
+
+  return number;
+}
+
+function toUrl(value, name) {
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('unsupported protocol');
+    }
+
+    return url.href;
+  } catch {
+    throw new Error(`Invalid ${name}`);
+  }
+}
+
+function toCountryCode(value, name) {
+  const code = toNumber(value, name);
+
+  // ISO 3166-1 numeric runs from 004 (Afghanistan) to 894 (Zambia).
+  if (!Number.isInteger(code) || code < 4 || code > 894) {
+    throw new Error(`Invalid ${name}`);
+  }
+
+  return code;
+}
+
+// Only '00' means approved. '100' (3-D Secure required) and '101' (redirect to
+// payment.paymentURL) are normal outcomes, but the payment is not settled yet:
+// check error.code yourself rather than reading this as "payment succeeded".
 function isPaymentError(errorCode) {
   return errorCode !== '00';
 }
 
 class Netopia {
   constructor({
-    apiBaseUrl = process.env.API_BASE_URL,
     apiKey = process.env.NETOPIA_API_KEY,
     cancelUrl = process.env.NETOPIA_CANCEL_URL,
     notifyUrl = process.env.NETOPIA_CONFIRM_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
+    timeout = 30000,
     redirectUrl = process.env.NETOPIA_RETURN_URL,
     language = 'ro',
     sandbox = process.env.NODE_ENV !== 'production',
   } = {}) {
-    this.apiBaseUrl = apiBaseUrl;
     this.apiKey = apiKey;
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
@@ -45,7 +86,13 @@ class Netopia {
     this.notifyUrl = notifyUrl;
     this.posSignature = posSignature;
     this.redirectUrl = redirectUrl;
+    this.timeout = timeout;
     this.config = { language };
+    this.order = {};
+    this.payment = {};
+  }
+
+  reset() {
     this.order = {};
     this.payment = {};
   }
@@ -64,13 +111,59 @@ class Netopia {
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
 
+    // validateField only sees the raw input; these are the values actually sent.
+    const account = String(paymentData.account).trim();
+    const secretCode = String(paymentData.secretCode).trim();
+    const expMonth = toNumber(paymentData.expMonth, 'Expiration month');
+    const expYear = toNumber(paymentData.expYear, 'Expiration year');
+
+    // A card number is a string of digits: as a number it silently loses digits.
+    if (typeof paymentData.account !== 'string' || !/^\d+$/.test(account)) {
+      throw new Error('Invalid Account number');
+    }
+    if (!/^\d{3,4}$/.test(secretCode)) {
+      throw new Error('Invalid Secret code');
+    }
+    if (!Number.isInteger(expMonth) || expMonth < 1 || expMonth > 12) {
+      throw new Error('Invalid Expiration month');
+    }
+    if (!Number.isInteger(expYear) || expYear < 100) {
+      throw new Error('Invalid Expiration year');
+    }
+
     this.payment.instrument = {
       ...this.payment.instrument,
-      account: paymentData.account,
-      expMonth: Number(paymentData.expMonth),
-      expYear: Number(paymentData.expYear),
-      secretCode: paymentData.secretCode,
+      type: 'card',
+      account: account,
+      expMonth: expMonth,
+      expYear: expYear,
+      secretCode: secretCode,
     };
+  }
+
+  setPaymentOptions(paymentOptions) {
+    if (!paymentOptions) {
+      throw new Error('Payment options are required');
+    }
+
+    const options = {};
+
+    for (const name of ['installments', 'bonus']) {
+      if (paymentOptions[name] == null) {
+        continue;
+      }
+      const value = toNumber(paymentOptions[name], name);
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error(`Invalid ${name}`);
+      }
+      options[name] = value;
+    }
+
+    if (Object.keys(options).length === 0) {
+      throw new Error('Payment options must include installments or bonus');
+    }
+
+    this.payment.options = { ...this.payment.options, ...options };
   }
 
   setBrowserData(reqBody, reqIp) {
@@ -107,6 +200,7 @@ class Netopia {
       'OS_VERSION',
       'OS',
       'SCREEN_POINT',
+      'SCREEN_PRINT',
     ];
 
     this.payment.data = browserFields.reduce((data, field) => {
@@ -116,7 +210,7 @@ class Netopia {
       return data;
     }, {});
 
-    this.payment.data.IP_ADDRESS = reqIp;
+    this.payment.data.IP_ADDRESS = String(reqIp);
   }
 
   setOrderData(orderData) {
@@ -138,15 +232,49 @@ class Netopia {
     // Netopia asks for the phone on its own payment page, so an empty value is
     // omitted instead of sent: placeholders like "-" are rejected there.
     const phone = orderData.billing?.phone;
-    const hasPhone = phone != null && !Number.isNaN(phone) && String(phone).trim().length > 0;
+    const isPhoneValue =
+      typeof phone === 'string' || (typeof phone === 'number' && Number.isFinite(phone));
+    const hasPhone = isPhoneValue && String(phone).trim().length > 0;
+
+    const amount = toNumber(orderData.amount, 'Amount');
+
+    // 0 is legal (account verification), negative is not: spec sets minimum 0.
+    if (amount < 0) {
+      throw new Error('Invalid Amount');
+    }
+
+    const country = toCountryCode(orderData.billing?.country || 642, 'Billing country');
+
+    const objectFields = [
+      [orderData.shipping, 'Shipping details'],
+      [orderData.data, 'Order data'],
+    ];
+
+    for (const [value, name] of objectFields) {
+      if (value != null && (typeof value !== 'object' || Array.isArray(value))) {
+        throw new Error(`Invalid ${name}`);
+      }
+    }
+
+    if (orderData.clientID != null && typeof orderData.clientID === 'object') {
+      throw new Error('Invalid Client ID');
+    }
+
+    // shipping is forwarded as given, except for the country the schema declares integer.
+    const shipping =
+      orderData.shipping?.country == null
+        ? orderData.shipping
+        : {
+            ...orderData.shipping,
+            country: toCountryCode(orderData.shipping.country, 'Shipping country'),
+          };
 
     this.order = {
-      ...this.order,
-      amount: Number(orderData.amount),
+      amount: amount,
       billing: {
         city: orderData.billing?.city || '',
-        country: Number(orderData.billing?.country || 642),
-        countryName: orderData.billing?.countryName || 'Romania',
+        country: country,
+        countryName: orderData.billing?.countryName || (country === 642 ? 'Romania' : ''),
         details: orderData.billing?.details || '',
         email: orderData.billing?.email,
         firstName: orderData.billing?.firstName,
@@ -159,6 +287,10 @@ class Netopia {
       dateTime: orderData.dateTime || new Date().toISOString(),
       description: orderData.description || '',
       orderID: orderData.orderID,
+      // Appended, not sorted in: moving the keys above would change the payload
+      // of every caller that does not use these fields.
+      ...(shipping != null && { shipping }),
+      ...pick(orderData, ['data', 'clientID']),
     };
   }
 
@@ -203,12 +335,19 @@ class Netopia {
           Authorization: this.apiKey,
         },
         data: data,
+        timeout: this.timeout,
       });
 
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new Error(error.response.data.message);
+        const { data, status, statusText } = error.response;
+        throw new Error(
+          data?.message ||
+            data?.error?.message ||
+            statusText ||
+            `Request failed with status ${status}`
+        );
       } else if (error.request) {
         throw new Error('No response received');
       } else {
@@ -218,33 +357,23 @@ class Netopia {
   }
 
   async startPayment() {
-    if (!this.notifyUrl) {
-      throw new Error('Notify URL is required');
-    }
-    if (!this.posSignature) {
-      throw new Error('POS signature is required');
-    }
-    if (!this.redirectUrl) {
-      throw new Error('Redirect URL is required');
-    }
+    validateField(this.notifyUrl, 'Notify URL');
+    validateField(this.posSignature, 'POS signature');
+    validateField(this.redirectUrl, 'Redirect URL');
 
     const requestData = {
-      config: this.config,
-      order: this.order,
-      payment: this.payment,
+      config: {
+        ...this.config,
+        notifyUrl: toUrl(this.notifyUrl, 'Notify URL'),
+        redirectUrl: toUrl(this.redirectUrl, 'Redirect URL'),
+        ...(this.cancelUrl && { cancelUrl: toUrl(this.cancelUrl, 'Cancel URL') }),
+      },
+      order: { ...this.order, posSignature: this.posSignature },
+      payment: { ...this.payment },
     };
-
-    requestData.config.notifyUrl = new URL(this.notifyUrl).href;
-    requestData.config.redirectUrl = new URL(this.redirectUrl).href;
-    if (this.cancelUrl) {
-      requestData.config.cancelUrl = new URL(this.cancelUrl).href;
-    }
-    requestData.order.posSignature = this.posSignature;
 
     const requiredFields = [
       { field: requestData.config.language, name: 'Language' },
-      { field: requestData.config.notifyUrl, name: 'Notify URL' },
-      { field: requestData.config.redirectUrl, name: 'Redirect URL' },
       { field: requestData.order.amount, name: 'Amount' },
       { field: requestData.order.billing, name: 'Billing details' },
       { field: requestData.order.billing?.email, name: 'Email' },
@@ -253,7 +382,6 @@ class Netopia {
       { field: requestData.order.currency, name: 'Currency' },
       { field: requestData.order.dateTime, name: 'Date & time' },
       { field: requestData.order.orderID, name: 'Order ID' },
-      { field: requestData.order.posSignature, name: 'POS signature' },
     ];
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
@@ -265,6 +393,44 @@ class Netopia {
       return response;
     } catch (error) {
       console.error('Error initiating payment:', error.message);
+      throw error;
+    }
+  }
+
+  async verifyAuth(authData) {
+    if (!authData) {
+      throw new Error('Authentication data is required');
+    }
+
+    const requiredFields = [
+      { field: authData.authenticationToken, name: 'Authentication token' },
+      { field: authData.ntpID, name: 'NETOPIA ID' },
+      { field: authData.formData, name: 'Form data' },
+    ];
+
+    requiredFields.forEach(({ field, name }) => validateField(field, name));
+
+    // Spec: every field received on the redirectUrl is mandatory and must not be altered.
+    if (typeof authData.formData !== 'object' || Array.isArray(authData.formData)) {
+      throw new Error('Invalid Form data');
+    }
+    if (Object.keys(authData.formData).length === 0) {
+      throw new Error('Form data cannot be empty');
+    }
+
+    const requestData = {
+      authenticationToken: authData.authenticationToken,
+      ntpID: authData.ntpID,
+      formData: authData.formData,
+    };
+
+    const url = `${this.baseUrl}/payment/card/verify-auth`;
+
+    try {
+      const response = await this.sendRequest(url, 'POST', requestData);
+      return response;
+    } catch (error) {
+      console.error('Error verifying 3-D Secure authentication:', error.message);
       throw error;
     }
   }
