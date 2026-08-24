@@ -33,9 +33,19 @@ NETOPIA_API_KEY="Your_API_Key_Here"
 NETOPIA_CONFIRM_URL="https://example.com/api/payment/notify"
 NETOPIA_RETURN_URL="https://example.com/redirect"
 NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
+
+# Optional: where the customer lands if they cancel the payment on the NETOPIA page
+NETOPIA_CANCEL_URL="https://example.com/cancel"
 ```
 
 These credentials can be found in the [NETOPIA Payments admin](https://admin.netopia-payments.com/) > Profile > Security.
+
+### Optional fields
+
+- **`NETOPIA_CANCEL_URL`** (or the `cancelUrl` constructor option) is optional. When set, it is sent as `config.cancelUrl` and NETOPIA returns the customer there if they cancel the payment. When it is not set, the key is left out of the request.
+- **`billing.phone`** is optional. NETOPIA does not require it: with the key missing, the payment starts normally and the NETOPIA page asks the customer for the phone number itself. An empty or whitespace-only value is omitted from the request rather than sent. Do not pass a placeholder such as `-` instead: the NETOPIA page rejects it with "Numărul de telefon nu este valid" and the customer cannot get past the first step.
+
+**Note on the OpenAPI spec**: NETOPIA's [OpenAPI spec](https://secure.sandbox.netopia-payments.com/spec) lists `billing.phone` under `Address.required`, but the API accepts the key being absent: it answers 200 with `error.code 101` and a `payment.paymentURL`, and the hosted page asks the customer for the number (empty field, placeholder `07xxxxxxxx`). Verified on sandbox. A strict contract check against the spec (`prism --errors`) will therefore flag a missing phone as invalid — that is a known spec/API divergence, not a bug in this library.
 
 ## Quick Start
 

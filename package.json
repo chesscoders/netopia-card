@@ -19,6 +19,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "files": [
+    "CHANGELOG.md",
     "functions",
     "index.d.ts",
     "index.js",

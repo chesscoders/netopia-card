@@ -14,6 +14,7 @@ type Config = {
   emailTemplate?: string; // Optional email template for the payment request.
   emailSubject?: string; // Optional subject line for the payment request email.
   cancelUrl?: string; // Optional URL to which the user should be redirected if the payment is cancelled.
+  notifyUrl: string; // URL to which NETOPIA sends the payment notification.
   redirectUrl: string; // URL to which the user should be redirected after the payment is processed.
   language: string; // Language code for the payment interface.
 };
@@ -80,7 +81,7 @@ type Order = {
  */
 type Address = {
   email: string;
-  phone: string;
+  phone?: string; // Optional: NETOPIA asks for it on its own payment page when omitted.
   firstName: string;
   lastName: string;
   city: string;
@@ -296,6 +297,7 @@ export declare class Netopia {
   constructor(config: {
     apiBaseUrl?: string;
     apiKey?: string;
+    cancelUrl?: string;
     notifyUrl?: string;
     posSignature?: string;
     redirectUrl?: string;

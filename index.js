@@ -29,6 +29,7 @@ class Netopia {
   constructor({
     apiBaseUrl = process.env.API_BASE_URL,
     apiKey = process.env.NETOPIA_API_KEY,
+    cancelUrl = process.env.NETOPIA_CANCEL_URL,
     notifyUrl = process.env.NETOPIA_CONFIRM_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
     redirectUrl = process.env.NETOPIA_RETURN_URL,
@@ -40,6 +41,7 @@ class Netopia {
     this.baseUrl = sandbox
       ? 'https://secure.sandbox.netopia-payments.com'
       : 'https://secure.mobilpay.ro/pay';
+    this.cancelUrl = cancelUrl;
     this.notifyUrl = notifyUrl;
     this.posSignature = posSignature;
     this.redirectUrl = redirectUrl;
@@ -128,11 +130,15 @@ class Netopia {
       { field: orderData.billing?.email, name: 'Email' },
       { field: orderData.billing?.firstName, name: 'First name' },
       { field: orderData.billing?.lastName, name: 'Last name' },
-      { field: orderData.billing?.phone, name: 'Phone' },
       { field: orderData.orderID, name: 'Order ID' },
     ];
 
     requiredFields.forEach(({ field, name }) => validateField(field, name));
+
+    // Netopia asks for the phone on its own payment page, so an empty value is
+    // omitted instead of sent: placeholders like "-" are rejected there.
+    const phone = orderData.billing?.phone;
+    const hasPhone = phone != null && !Number.isNaN(phone) && String(phone).trim().length > 0;
 
     this.order = {
       ...this.order,
@@ -145,7 +151,7 @@ class Netopia {
         email: orderData.billing?.email,
         firstName: orderData.billing?.firstName,
         lastName: orderData.billing?.lastName,
-        phone: orderData.billing?.phone,
+        ...(hasPhone && { phone }),
         postalCode: orderData.billing?.postalCode || '',
         state: orderData.billing?.state || '',
       },
@@ -230,6 +236,9 @@ class Netopia {
 
     requestData.config.notifyUrl = new URL(this.notifyUrl).href;
     requestData.config.redirectUrl = new URL(this.redirectUrl).href;
+    if (this.cancelUrl) {
+      requestData.config.cancelUrl = new URL(this.cancelUrl).href;
+    }
     requestData.order.posSignature = this.posSignature;
 
     const requiredFields = [
@@ -241,7 +250,6 @@ class Netopia {
       { field: requestData.order.billing?.email, name: 'Email' },
       { field: requestData.order.billing?.firstName, name: 'First name' },
       { field: requestData.order.billing?.lastName, name: 'Last name' },
-      { field: requestData.order.billing?.phone, name: 'Phone' },
       { field: requestData.order.currency, name: 'Currency' },
       { field: requestData.order.dateTime, name: 'Date & time' },
       { field: requestData.order.orderID, name: 'Order ID' },
