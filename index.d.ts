@@ -170,6 +170,7 @@ type PaymentBinding = {
  */
 interface Request {
   body: any;
+  rawBody?: Buffer | string;
   query: { [key: string]: string | undefined };
   params: { [key: string]: string };
   headers: { [key: string]: string | undefined };
@@ -330,6 +331,7 @@ export declare class Netopia {
     cancelUrl?: string;
     notifyUrl?: string;
     posSignature?: string;
+    publicKey?: string;
     redirectUrl?: string;
     timeout?: number;
     language?: string;
@@ -374,6 +376,16 @@ export declare class Netopia {
   setProductsData(productsData: ProductData[]): void;
 
   /**
+   * Verifies a payment notification against this account and returns what it carries.
+   * Needs the body as received: mount `rawTextBodyParser` on the notification route, or
+   * keep a copy of the bytes with `captureRawBody`.
+   * @param req The Express request carrying the notification.
+   * @returns The verified notification.
+   * @throws If anything about the notification cannot be trusted.
+   */
+  verifyNotification(req: Request): NotifyRequest;
+
+  /**
    * Initiates a payment using the internal configuration, order, and payment information.
    * This method prepares the request data, sets the notification URL and POS signature,
    * and sends the payment request to the configured API endpoint.
@@ -399,3 +411,97 @@ export declare class Netopia {
  * @param {NextFunction} next - The next middleware function.
  */
 export function rawTextBodyParser(req: Request, res: Response, next: NextFunction): void;
+
+/**
+ * Keeps the body bytes on `req.rawBody`, for `verifyNotification`. Pass it as the `verify`
+ * option of a body parser: `express.json({ verify: captureRawBody })`.
+ */
+export function captureRawBody(req: Request, res: Response, buffer: Buffer): void;
+
+/**
+ * Verifies a NETOPIA payment notification (IPN) and returns the notification it carries.
+ *
+ * NETOPIA signs every notification and sends the signature as a JWT in the
+ * `Verification-token` header: `iss` is NETOPIA, `aud` is the POS signature, and `sub` is the
+ * base64 sha512 hash of the exact request body. The public key belongs to your account:
+ * NETOPIA Payments admin > Profile > Security.
+ *
+ * @throws If anything about the notification cannot be trusted.
+ */
+export function verifyNotification(params: {
+  token: string;
+  rawBody: Buffer | string;
+  posSignature: string;
+  publicKey: string;
+}): NotifyRequest;
+
+/**
+ * What to do with an order that is waiting for a card payment.
+ */
+export type PaymentAction = 'unreadable' | 'approve' | 'reject' | 'expire' | 'pending';
+
+/**
+ * Decides what to do with an order that is waiting for a card payment, from the NETOPIA
+ * payment status. `unreadable` means NETOPIA returned no status at all, so nothing is known
+ * about the payment and the order should be left alone.
+ */
+export function resolvePaymentAction(
+  paymentStatus: number,
+  options?: { expired?: boolean }
+): PaymentAction;
+
+/**
+ * NETOPIA payment statuses, as sent in `payment.status`. The API spec documents 3, 5, 12 and
+ * 15; the full set is the one NETOPIA uses in its own SDKs.
+ */
+export declare const PaymentStatus: {
+  readonly NEW: 1;
+  readonly OPENED: 2;
+  readonly PAID: 3;
+  readonly CANCELED: 4;
+  readonly CONFIRMED: 5;
+  readonly PENDING: 6;
+  readonly SCHEDULED: 7;
+  readonly CREDIT: 8;
+  readonly CHARGEBACK_INIT: 9;
+  readonly CHARGEBACK_ACCEPT: 10;
+  readonly ERROR: 11;
+  readonly DECLINED: 12;
+  readonly FRAUD: 13;
+  readonly PENDING_AUTH: 14;
+  readonly THREE_D_AUTH: 15;
+  readonly CHARGEBACK_REPRESENTMENT: 16;
+  readonly REVERSED: 17;
+  readonly PENDING_ANY: 18;
+  readonly PROGRAMMED_RECURRENT_PAYMENT: 19;
+  readonly CANCELED_PROGRAMMED_RECURRENT_PAYMENT: 20;
+  readonly TRIAL_PENDING: 21;
+  readonly TRIAL: 22;
+  readonly EXPIRED: 23;
+};
+
+/**
+ * The money is in: deliver the goods.
+ */
+export declare const SETTLED_PAYMENT_STATUSES: readonly number[];
+
+/**
+ * Final failures: this order will not be paid.
+ */
+export declare const FINAL_FAILURE_STATUSES: readonly number[];
+
+/**
+ * Money taken back after it settled.
+ */
+export declare const CHARGEBACK_STATUSES: readonly number[];
+
+/**
+ * The `error.code` values a card start answers with. Only `APPROVED` means the payment went
+ * through; the 3-D Secure and redirect codes are normal outcomes where nothing is settled yet.
+ */
+export declare const ErrorCode: {
+  readonly APPROVED: '00';
+  readonly THREE_D_AUTH_REQUIRED: '100';
+  readonly REDIRECT_TO_PAYMENT_URL: '101';
+  readonly ORDER_UNREADABLE: '103';
+};

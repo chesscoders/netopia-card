@@ -20,6 +20,8 @@ yarn add netopia-card
 
 - Easy-to-use API for initiating card payments and handling callbacks
 - Input validation before a request is sent, so bad data fails locally instead of on the payment page
+- Signature verification for payment notifications through `verifyNotification`
+- Payment status and error code constants, so nothing branches on a bare number
 - 3-D Secure continuation through `verifyAuth`
 - Installments and bonus points through `setPaymentOptions`
 
@@ -38,6 +40,9 @@ NETOPIA_API_KEY="Your_API_Key_Here"
 NETOPIA_CONFIRM_URL="https://example.com/api/payment/notify"
 NETOPIA_RETURN_URL="https://example.com/redirect"
 NETOPIA_SIGNATURE="XXXX-XXXX-XXXX-XXXX-XXXX"
+
+# Public key or certificate for verifying notifications, newlines escaped as \n
+NETOPIA_PUBLIC_KEY="-----BEGIN CERTIFICATE-----\nMIIDIT...\n-----END CERTIFICATE-----"
 
 # Optional: where the customer lands if they cancel the payment on the NETOPIA page
 NETOPIA_CANCEL_URL="https://example.com/cancel"
@@ -223,21 +228,23 @@ router.post('/api/payment/start', async (req, res) => {
 module.exports = router;
 ```
 
-Handle payment notifications by creating a notification route:
+Handle payment notifications by creating a notification route. Verify the notification
+before you act on it: `verifyNotification` checks the signature NETOPIA sends and returns the
+notification it verified, or throws.
 
 ```javascript
 const express = require('express');
-const { rawTextBodyParser } = require('netopia-card');
+const { Netopia, PaymentStatus, rawTextBodyParser } = require('netopia-card');
 const { confirmOrder } = require('./orderHandlers');
 
 const app = express();
 
 app.post('/api/payment/notify', rawTextBodyParser, async (req, res) => {
+  const netopia = new Netopia();
+
   try {
-    const { order, payment } = JSON.parse(req.body);
-    if (!order || !payment) {
-      throw new Error('Invalid request body');
-    }
+    // Throws unless the signature, the POS signature and the body hash all match.
+    const { order, payment } = netopia.verifyNotification(req);
 
     await confirmOrder({ order, payment });
 
@@ -254,7 +261,19 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 
 **Keep other body parsers off this route.** `express.json()` sets `req.body` before it even looks at the content type, and for `application/json` it consumes the stream, so mounting it anywhere ahead of this middleware - including app-wide - leaves nothing to read and breaks the handler above. Mount `rawTextBodyParser` on the notification route only, as shown.
 
-**Security**: the v2 API does not sign notifications. Its OpenAPI spec defines no signature, HMAC or verification token on the notification payload, so anyone who learns your `notifyUrl` can post to it. Treat a notification as a trigger, not as proof of payment: serve the endpoint over HTTPS, check that `order.orderID` belongs to an order you created and that the amount matches what you charged, make the handler idempotent so a replay changes nothing, and log what you receive. Mind the units when comparing: the spec documents the notification amount as "amount in decimal units, i.e. 1234 = 12.34", while the start response mirrors the amount you sent.
+**Security**: NETOPIA signs every notification, even though its OpenAPI spec does not mention it. The `Verification-token` header carries a JWT: `iss` is `NETOPIA Payments`, `aud` is the POS signature the notification is for, and `sub` is the base64 sha512 hash of the exact request body. `verifyNotification` checks all three plus the RSA signature, using the public key from NETOPIA Payments admin > Profile > Security (`NETOPIA_PUBLIC_KEY`).
+
+Without that check the endpoint is open: anyone who learns your `notifyUrl` can post a paid notification to it. With it, still treat the notification as a trigger rather than the whole truth - check that `order.orderID` belongs to an order you created and that the amount matches what you charged, and make the handler idempotent so a replay changes nothing. Mind the units when comparing: the spec documents the notification amount as "amount in decimal units, i.e. 1234 = 12.34", while the start response mirrors the amount you sent.
+
+The hash is over the bytes as received, so the body has to reach `verifyNotification` unparsed. Two ways:
+
+```javascript
+// A: the notification route reads the body raw - nothing else parses it
+app.post('/api/payment/notify', rawTextBodyParser, handler);
+
+// B: your app parses JSON app-wide, and keeps the bytes for verification
+app.use(express.json({ verify: captureRawBody }));
+```
 
 ### Reusing an instance
 
@@ -284,6 +303,35 @@ if (isPaymentError(error.code)) {
 }
 // error.code === '00': payment.status 3 (paid) or 5 (confirmed)
 ```
+
+### Payment statuses
+
+`error.code` tells you how the request went; `payment.status` tells you where the money is. Both come as bare numbers, so the package exports the names:
+
+```javascript
+const { PaymentStatus, resolvePaymentAction } = require('netopia-card');
+
+const { order, payment } = netopia.verifyNotification(req);
+
+switch (resolvePaymentAction(payment.status, { expired: isPastDeadline(order) })) {
+  case 'approve': // 3 paid, 5 confirmed
+    return fulfill(order.orderID);
+  case 'reject': // 4 canceled, 11 error, 12 declined, 13 fraud, 17 reversed, 23 expired
+    return release(order.orderID);
+  case 'expire':
+    return close(order.orderID);
+  case 'unreadable': // NETOPIA sent no status: nothing is known, leave the order alone
+  case 'pending':
+    return;
+}
+
+// or branch on the status yourself
+if (payment.status === PaymentStatus.THREE_D_AUTH) {
+  // the customer is still on the 3-D Secure page
+}
+```
+
+Also exported: `SETTLED_PAYMENT_STATUSES`, `FINAL_FAILURE_STATUSES`, `CHARGEBACK_STATUSES` (9, 10, 16 - money taken back after it settled, which needs a human) and `ErrorCode`. NETOPIA calls status 13 "payment in reviewing", and `FINAL_FAILURE_STATUSES` counts it as a failure: check `PaymentStatus.FRAUD` yourself first if you would rather hold such an order than release it.
 
 ### 3-D Secure continuation
 

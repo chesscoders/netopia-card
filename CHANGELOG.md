@@ -14,6 +14,24 @@ recorded in the [commit history](https://github.com/chesscoders/netopia-card/com
 
 ### Added
 
+- `verifyNotification` and `netopia.verifyNotification(req)` verify a payment notification
+  (IPN) and return the notification they verified, or throw. NETOPIA signs every notification
+  and sends the signature as a JWT in the `Verification-token` header - `iss` is
+  `NETOPIA Payments`, `aud` is the POS signature, `sub` is the base64 sha512 hash of the exact
+  request body - so an unverified notification endpoint accepts a paid notification from anyone
+  who learns its URL. The public key comes from the new `publicKey` option, defaulting to
+  `NETOPIA_PUBLIC_KEY`; a PEM public key and an X.509 certificate both work, with escaped
+  newlines allowed. Verified with node `crypto`, so the package still has no crypto dependency.
+- `captureRawBody`, for apps that parse JSON app-wide: `express.json({ verify: captureRawBody })`
+  keeps the bytes on `req.rawBody`, which is what the hash is over.
+  `netopia.verifyNotification(req)` reads either `req.rawBody` or the string body
+  `rawTextBodyParser` leaves behind.
+- `PaymentStatus`, the full set of 23 payment statuses NETOPIA uses in its own SDKs (the API
+  spec documents 3, 5, 12 and 15), plus `SETTLED_PAYMENT_STATUSES`, `FINAL_FAILURE_STATUSES`,
+  `CHARGEBACK_STATUSES` and `ErrorCode`. All frozen.
+- `resolvePaymentAction(paymentStatus, { expired })` maps a payment status to what to do with a
+  waiting order: `approve`, `reject`, `expire`, `pending`, or `unreadable` when NETOPIA returns
+  no status at all and nothing is known about the payment.
 - `verifyAuth({ authenticationToken, ntpID, formData })` calls `POST /payment/card/verify-auth`,
   the step the API requires after a start response returns `error.code 100` with a
   `customerAction`. Without it, the flow that sends card data through `setPaymentData` could be
@@ -115,10 +133,11 @@ recorded in the [commit history](https://github.com/chesscoders/netopia-card/com
   the `XXXX-` placeholder used for the signature right below it. The value was not a production
   key and the file is not part of the npm package, but an example file should not look like it
   holds a working credential.
-- The notification section documents that API v2 signs nothing: the spec defines no signature,
-  HMAC or verification token on the notification payload, so the endpoint is reachable by anyone
-  who learns its URL. It now says how to handle that, and the middleware behind it no longer
-  accumulates an unbounded body.
+- Notifications can be verified, and the README says how. API v2 does sign them, through the
+  `Verification-token` header, even though its OpenAPI spec never mentions it - so the previous
+  advice to treat the endpoint as unauthenticated understated what is available. Anything that
+  reaches `confirmOrder` should have gone through `verifyNotification` first. The middleware
+  behind it also no longer accumulates an unbounded body.
 
 ### Fixed
 

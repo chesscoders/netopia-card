@@ -1,7 +1,8 @@
 require('dotenv').config();
 const axios = require('axios');
-const { pick, validateField } = require('./functions');
-const { rawTextBodyParser } = require('./middlewares');
+const constants = require('./constants');
+const { pick, resolvePaymentAction, validateField, verifyNotification } = require('./functions');
+const { captureRawBody, rawTextBodyParser } = require('./middlewares');
 
 function collectBrowserInfo(navigator, window) {
   return {
@@ -73,6 +74,7 @@ class Netopia {
     cancelUrl = process.env.NETOPIA_CANCEL_URL,
     notifyUrl = process.env.NETOPIA_CONFIRM_URL,
     posSignature = process.env.NETOPIA_SIGNATURE,
+    publicKey = process.env.NETOPIA_PUBLIC_KEY,
     timeout = 30000,
     redirectUrl = process.env.NETOPIA_RETURN_URL,
     language = 'ro',
@@ -85,6 +87,7 @@ class Netopia {
     this.cancelUrl = cancelUrl;
     this.notifyUrl = notifyUrl;
     this.posSignature = posSignature;
+    this.publicKey = publicKey;
     this.redirectUrl = redirectUrl;
     this.timeout = timeout;
     this.config = { language };
@@ -397,6 +400,28 @@ class Netopia {
     }
   }
 
+  /**
+   * Verifies a payment notification against this account and returns what it carries.
+   * Needs the body as received: mount `rawTextBodyParser` on the notification route, or
+   * keep a copy with `captureRawBody`.
+   *
+   * @param {Request} req - The Express request carrying the notification.
+   * @returns {{ order: Object, payment: Object }} The verified notification.
+   * @throws {Error} If anything about the notification cannot be trusted.
+   */
+  verifyNotification(req) {
+    if (!req) {
+      throw new Error('Request is required');
+    }
+
+    return verifyNotification({
+      token: req.headers?.['verification-token'],
+      rawBody: req.rawBody ?? (typeof req.body === 'string' ? req.body : undefined),
+      posSignature: this.posSignature,
+      publicKey: this.publicKey,
+    });
+  }
+
   async verifyAuth(authData) {
     if (!authData) {
       throw new Error('Authentication data is required');
@@ -437,8 +462,12 @@ class Netopia {
 }
 
 module.exports = {
+  ...constants,
+  captureRawBody,
   collectBrowserInfo,
   isPaymentError,
   Netopia,
   rawTextBodyParser,
+  resolvePaymentAction,
+  verifyNotification,
 };
