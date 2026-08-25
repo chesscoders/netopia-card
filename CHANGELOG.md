@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. Releases before 2.2.0 are only
 recorded in the [commit history](https://github.com/chesscoders/netopia-card/commits/master).
 
+## [3.0.1] - 2026-08-25
+
+### Fixed
+
+- Every export is reachable as a named ESM import. `module.exports` spread the constants object,
+  which `cjs-module-lexer` cannot see, so `import { PaymentStatus } from 'netopia-card'` threw
+  `SyntaxError: Named export 'PaymentStatus' not found` at load time in an ESM consumer. The
+  constants introduced in 3.0.0 were the first exports to hit it, so 3.0.0 is unusable from ESM
+  unless the whole module is imported as a default and destructured. Exports are now listed one
+  by one, and a test runs a real ESM import in a child process.
+
 ## [3.0.0] - 2026-08-25
 
 ### Removed

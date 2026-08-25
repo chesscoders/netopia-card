@@ -1,6 +1,12 @@
 require('dotenv').config();
 const axios = require('axios');
-const constants = require('./constants');
+const {
+  CHARGEBACK_STATUSES,
+  ErrorCode,
+  FINAL_FAILURE_STATUSES,
+  PaymentStatus,
+  SETTLED_PAYMENT_STATUSES,
+} = require('./constants');
 const { pick, resolvePaymentAction, validateField, verifyNotification } = require('./functions');
 const { captureRawBody, rawTextBodyParser } = require('./middlewares');
 
@@ -482,13 +488,19 @@ class Netopia {
   }
 }
 
+// Listed one by one, not spread: a spread is invisible to cjs-module-lexer, so
+// `import { PaymentStatus } from 'netopia-card'` would throw in an ESM consumer.
 module.exports = {
-  ...constants,
   captureRawBody,
+  CHARGEBACK_STATUSES,
   collectBrowserInfo,
+  ErrorCode,
+  FINAL_FAILURE_STATUSES,
   isPaymentError,
   Netopia,
+  PaymentStatus,
   rawTextBodyParser,
   resolvePaymentAction,
+  SETTLED_PAYMENT_STATUSES,
   verifyNotification,
 };
