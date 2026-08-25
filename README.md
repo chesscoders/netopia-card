@@ -52,7 +52,7 @@ These credentials can be found in the [NETOPIA Payments admin](https://admin.net
 
 ### Sandbox or production
 
-There is a sixth variable the library reads: **`NODE_ENV`**. It picks the host when you do not pass the `sandbox` option:
+One more variable decides where the requests go: **`NODE_ENV`**. It picks the host when you do not pass the `sandbox` option:
 
 ```javascript
 sandbox: process.env.NODE_ENV !== 'production'; // the default
@@ -234,7 +234,7 @@ notification it verified, or throws.
 
 ```javascript
 const express = require('express');
-const { Netopia, PaymentStatus, rawTextBodyParser } = require('netopia-card');
+const { Netopia, rawTextBodyParser } = require('netopia-card');
 const { confirmOrder } = require('./orderHandlers');
 
 const app = express();
@@ -259,20 +259,25 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 
 `rawTextBodyParser` reads the body raw for `application/json` (what NETOPIA sends), `text/plain`, or a missing content type, and skips anything else. Bodies over 1 MB are rejected with a 413, and an aborted request ends with a 400 instead of hanging.
 
-**Keep other body parsers off this route.** `express.json()` sets `req.body` before it even looks at the content type, and for `application/json` it consumes the stream, so mounting it anywhere ahead of this middleware - including app-wide - leaves nothing to read and breaks the handler above. Mount `rawTextBodyParser` on the notification route only, as shown.
+**Security**: NETOPIA signs the notifications it sends, even though its OpenAPI spec does not mention it. The `Verification-token` header carries a JWT: `iss` is `NETOPIA Payments`, `aud` is the POS signature the notification is for, and `sub` is the base64 sha512 hash of the exact request body. `verifyNotification` checks all three plus the RSA signature, using the public key from NETOPIA Payments admin > Profile > Security (`NETOPIA_PUBLIC_KEY`).
 
-**Security**: NETOPIA signs every notification, even though its OpenAPI spec does not mention it. The `Verification-token` header carries a JWT: `iss` is `NETOPIA Payments`, `aud` is the POS signature the notification is for, and `sub` is the base64 sha512 hash of the exact request body. `verifyNotification` checks all three plus the RSA signature, using the public key from NETOPIA Payments admin > Profile > Security (`NETOPIA_PUBLIC_KEY`).
+Without that check the endpoint is open: anyone who learns your `notifyUrl` can post a paid notification to it. With it, still treat the notification as a trigger rather than the whole truth - check that `order.orderID` belongs to an order you created and that the amount matches what you charged, and make the handler idempotent so a replay changes nothing - a replayed notification is a valid notification, and NETOPIA retries. `netopia.verifyNotification(req, { maxAgeSeconds: 900 })` additionally rejects a token older than that, for tokens that carry `iat`. Mind the units when comparing: the spec documents the notification amount as "amount in decimal units, i.e. 1234 = 12.34", while the start response mirrors the amount you sent.
 
-Without that check the endpoint is open: anyone who learns your `notifyUrl` can post a paid notification to it. With it, still treat the notification as a trigger rather than the whole truth - check that `order.orderID` belongs to an order you created and that the amount matches what you charged, and make the handler idempotent so a replay changes nothing. Mind the units when comparing: the spec documents the notification amount as "amount in decimal units, i.e. 1234 = 12.34", while the start response mirrors the amount you sent.
+The hash is over the bytes as received, so the body has to reach `verifyNotification` unparsed. Pick one of two setups - `verifyNotification` accepts either.
 
-The hash is over the bytes as received, so the body has to reach `verifyNotification` unparsed. Two ways:
+**A. Raw on the notification route**, as in the example above. `rawTextBodyParser` leaves the bytes in `req.body` as a string. This only works if nothing parsed the body first: `express.json()` sets `req.body` before it even looks at the content type, and for `application/json` it consumes the stream, so an app-wide JSON parser leaves this route nothing to read. Mount the JSON parser per route, or use setup B.
 
 ```javascript
-// A: the notification route reads the body raw - nothing else parses it
 app.post('/api/payment/notify', rawTextBodyParser, handler);
+```
 
-// B: your app parses JSON app-wide, and keeps the bytes for verification
+**B. Parse JSON app-wide, keep the bytes.** `captureRawBody` stores them on `req.rawBody`, which `verifyNotification` prefers over `req.body`. Nothing else is needed on the route.
+
+```javascript
+const { captureRawBody } = require('netopia-card');
+
 app.use(express.json({ verify: captureRawBody }));
+app.post('/api/payment/notify', handler);
 ```
 
 ### Reusing an instance
@@ -290,23 +295,25 @@ netopia.reset(); // clears the order and the payment, instrument and options inc
 `isPaymentError(code)` is true for everything except `'00'`, on purpose. `'100'` (3-D Secure needed) and `'101'` (redirect to `payment.paymentURL`) are normal answers, but nothing is settled yet, so treating "not an error" as "paid" would fulfil an order the customer has not paid for. Branch on the code itself:
 
 ```javascript
+const { ErrorCode, isPaymentError } = require('netopia-card');
+
 const { error, payment, customerAction } = await netopia.startPayment();
 
-if (error.code === '101') {
+if (error.code === ErrorCode.REDIRECT_TO_PAYMENT_URL) {
   return res.json({ redirectTo: payment.paymentURL }); // not paid yet
 }
-if (error.code === '100') {
+if (error.code === ErrorCode.THREE_D_AUTH_REQUIRED) {
   return res.json({ customerAction }); // 3-D Secure, not paid yet
 }
 if (isPaymentError(error.code)) {
   throw new Error(error.message);
 }
-// error.code === '00': payment.status 3 (paid) or 5 (confirmed)
+// ErrorCode.APPROVED: payment.status 3 (paid) or 5 (confirmed)
 ```
 
 ### Payment statuses
 
-`error.code` tells you how the request went; `payment.status` tells you where the money is. Both come as bare numbers, so the package exports the names:
+`error.code` tells you how the request went; `payment.status` tells you where the money is. The first is a string (`'00'`, `'101'`), the second a number, and both arrive bare, so the package exports the names:
 
 ```javascript
 const { PaymentStatus, resolvePaymentAction } = require('netopia-card');
@@ -316,6 +323,8 @@ const { order, payment } = netopia.verifyNotification(req);
 switch (resolvePaymentAction(payment.status, { expired: isPastDeadline(order) })) {
   case 'approve': // 3 paid, 5 confirmed
     return fulfill(order.orderID);
+  case 'chargeback': // 9, 10, 16 - settled, then taken back
+    return escalate(order.orderID);
   case 'reject': // 4 canceled, 11 error, 12 declined, 13 fraud, 17 reversed, 23 expired
     return release(order.orderID);
   case 'expire':
@@ -331,7 +340,9 @@ if (payment.status === PaymentStatus.THREE_D_AUTH) {
 }
 ```
 
-Also exported: `SETTLED_PAYMENT_STATUSES`, `FINAL_FAILURE_STATUSES`, `CHARGEBACK_STATUSES` (9, 10, 16 - money taken back after it settled, which needs a human) and `ErrorCode`. NETOPIA calls status 13 "payment in reviewing", and `FINAL_FAILURE_STATUSES` counts it as a failure: check `PaymentStatus.FRAUD` yourself first if you would rather hold such an order than release it.
+A status read back from storage as a string is accepted, since `payment.status` often makes a round trip through a database column.
+
+Also exported: `SETTLED_PAYMENT_STATUSES`, `FINAL_FAILURE_STATUSES`, `CHARGEBACK_STATUSES` and `ErrorCode`. The spec names only four statuses, so the rest come from NETOPIA's own SDK, which also describes status 13 as "payment in reviewing" - `FINAL_FAILURE_STATUSES` counts it as a failure anyway, so check `PaymentStatus.FRAUD` yourself first if you would rather hold such an order than release it.
 
 ### 3-D Secure continuation
 
@@ -359,7 +370,7 @@ const response = await netopia.verifyAuth({
 - `setOrderData` no longer carries products over from a previous order on the same instance. Call `setProductsData` after `setOrderData`, as the examples do, or the basket is dropped instead of being attached to the wrong order.
 - `notifyUrl`, `redirectUrl` and `cancelUrl` must be `http:` or `https:`.
 - Requests time out after 30 seconds instead of hanging forever; pass `timeout` to the constructor to change it.
-- `rawTextBodyParser` now reads `application/json` bodies. If you mount your own JSON parser on the notification route, mount it _before_ this middleware - it skips a request that is already parsed.
+- `rawTextBodyParser` now reads `application/json` bodies, which is what NETOPIA sends, and leaves the bytes on `req.rawBody` as well as the string on `req.body`. Do not mount another body parser ahead of it on that route: it skips a request whose body was already read, and `verifyNotification` then has nothing to hash. Either keep the JSON parser off the notification route, or drop `rawTextBodyParser` and use `express.json({ verify: captureRawBody })`.
 
 `isPaymentError` is unchanged: only `'00'` is a success.
 

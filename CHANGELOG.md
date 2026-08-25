@@ -15,13 +15,31 @@ recorded in the [commit history](https://github.com/chesscoders/netopia-card/com
 ### Added
 
 - `verifyNotification` and `netopia.verifyNotification(req)` verify a payment notification
-  (IPN) and return the notification they verified, or throw. NETOPIA signs every notification
+  (IPN) and return the notification they verified, or throw. NETOPIA signs its notifications
   and sends the signature as a JWT in the `Verification-token` header - `iss` is
   `NETOPIA Payments`, `aud` is the POS signature, `sub` is the base64 sha512 hash of the exact
   request body - so an unverified notification endpoint accepts a paid notification from anyone
   who learns its URL. The public key comes from the new `publicKey` option, defaulting to
   `NETOPIA_PUBLIC_KEY`; a PEM public key and an X.509 certificate both work, with escaped
   newlines allowed. Verified with node `crypto`, so the package still has no crypto dependency.
+  The `alg` header is looked up as an own property only, so `alg: "constructor"` cannot reach
+  `Object.prototype`; `exp`, `nbf` and `iat` must be numbers when present, because `now > NaN`
+  is false and a garbage claim would otherwise skip the check rather than fail it; `aud` is
+  matched against the whole audience list, since a NETOPIA account can hold several POS
+  signatures and the spec puts no order on them; a key that is not RSA is rejected as a
+  misconfiguration instead of failing the signature check, which would read as tampering; and
+  the verified body must parse to a JSON object. `maxAgeSeconds` optionally bounds how old a
+  token may be - a replayed notification is otherwise a valid one, so the handler still has to
+  be idempotent.
+- `resolvePaymentAction` returns `chargeback` for statuses 9, 10 and 16, which settled and were
+  then taken back: they need a human, not the release path a plain failure gets. A status that
+  arrives as a string, the way a database column hands it back, is read as a number instead of
+  falling through to `pending`.
+- `rawTextBodyParser` sets `req.rawBody` to the body as a Buffer, alongside the string on
+  `req.body`, and `verifyNotification` prefers it. Decoding to a string and re-encoding is not
+  byte-exact for anything that is not valid UTF-8 - a single CP1252 byte echoed back in a
+  free-form field became U+FFFD, changed the sha512 and made a genuine notification read as
+  tampering, permanently, since every NETOPIA retry failed the same way.
 - `captureRawBody`, for apps that parse JSON app-wide: `express.json({ verify: captureRawBody })`
   keeps the bytes on `req.rawBody`, which is what the hash is over.
   `netopia.verifyNotification(req)` reads either `req.rawBody` or the string body
@@ -88,11 +106,26 @@ recorded in the [commit history](https://github.com/chesscoders/netopia-card/com
 - `startPayment` reports a malformed `notifyUrl`/`redirectUrl`/`cancelUrl` as
   `Invalid Notify URL` and so on, instead of a bare `TypeError [ERR_INVALID_URL]` that names no
   field.
+- `sendRequest` errors carry `status`, the NETOPIA `code` and the original error as `cause`, and
+  a timeout now says so instead of sharing "No response received" with a DNS failure. On
+  `/payment/card/start` that distinction decides whether the payment may exist and needs
+  reconciling or was never sent - and the new 30 second timeout makes the branch reachable.
+- `startPayment` snapshots the whole request deeply, so a setter called while the request is in
+  flight cannot rewrite what was sent. The shallow copy still shared `payment.instrument`, so
+  assigning a new card number retroactively rewrote the PAN in an already-sent payload.
+- The bundled type declarations follow the runtime in both directions: `billing.email`,
+  `firstName` and `lastName` are required, as `setOrderData` has always validated, while every
+  coerced input the docs promise - a string `country`, a string `expMonth`/`expYear`, a numeric
+  `phone`, a string `installments` - now type-checks. `setPaymentOptions({})` is a type error,
+  matching the runtime, and `captureRawBody` is assignable to a body parser `verify` option.
 - `sendRequest` no longer assumes every error body is `{ message }`. A spec-shaped
   `{ error: { message } }`, an HTML gateway page and an empty body used to produce
   `new Error(undefined)`; they now yield the message, the status text, or the status code.
-- **Breaking**: `billing.country` and `shipping.country` must coerce to an integer, the ISO
-  3166-1 numeric code the schema declares. `country: 'RO'` used to ship as `"country":null`;
+- **Breaking**: `billing.country` and `shipping.country` must be an ISO 3166-1 numeric code,
+  4 to 894. A falsy billing country - `0`, `''` or `false`, which is what an unselected
+  `<select>` posts - used to become 642 and `countryName: 'Romania'` silently, so a German
+  order shipped as Romanian while the identical shipping value threw. Only an absent country
+  defaults to Romania now. Both fields coerce to an integer, the code the schema declares. `country: 'RO'` used to ship as `"country":null`;
   it now throws `Invalid Billing country` / `Invalid Shipping country`. `shipping.country` is
   coerced the way `billing.country` always was, so a string `'642'` from a form goes out as
   `642`.

@@ -39,7 +39,7 @@ const SETTLED_PAYMENT_STATUSES = Object.freeze([PaymentStatus.PAID, PaymentStatu
 /**
  * Final failures: this order will not be paid, so it can be released or closed.
  *
- * FRAUD is here as the conservative choice - NETOPIA describes 13 as "payment in
+ * FRAUD is here as the conservative choice - NETOPIA's SDK describes 13 as "payment in
  * reviewing", so a merchant who prefers to hold such an order rather than reject it
  * should check for `PaymentStatus.FRAUD` before calling `resolvePaymentAction`.
  */

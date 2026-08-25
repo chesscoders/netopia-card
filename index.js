@@ -246,7 +246,11 @@ class Netopia {
       throw new Error('Invalid Amount');
     }
 
-    const country = toCountryCode(orderData.billing?.country || 642, 'Billing country');
+    // Default only when absent: 0, '' and false are a broken form, not Romania.
+    const country =
+      orderData.billing?.country == null
+        ? 642
+        : toCountryCode(orderData.billing.country, 'Billing country');
 
     const objectFields = [
       [orderData.shipping, 'Shipping details'],
@@ -345,16 +349,25 @@ class Netopia {
     } catch (error) {
       if (error.response) {
         const { data, status, statusText } = error.response;
-        throw new Error(
-          data?.message ||
-            data?.error?.message ||
-            statusText ||
-            `Request failed with status ${status}`
+        throw Object.assign(
+          new Error(
+            data?.message ||
+              data?.error?.message ||
+              statusText ||
+              `Request failed with status ${status}`
+          ),
+          { status: status, code: data?.error?.code, cause: error }
         );
       } else if (error.request) {
-        throw new Error('No response received');
+        // A timeout may mean the payment was created and needs reconciling; a
+        // connection error means the request never arrived. Keep them apart.
+        const timedOut = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
+        throw Object.assign(new Error(timedOut ? 'Request timed out' : 'No response received'), {
+          code: error.code,
+          cause: error,
+        });
       } else {
-        throw new Error(error.message);
+        throw Object.assign(new Error(error.message), { cause: error });
       }
     }
   }
@@ -364,16 +377,20 @@ class Netopia {
     validateField(this.posSignature, 'POS signature');
     validateField(this.redirectUrl, 'Redirect URL');
 
-    const requestData = {
-      config: {
-        ...this.config,
-        notifyUrl: toUrl(this.notifyUrl, 'Notify URL'),
-        redirectUrl: toUrl(this.redirectUrl, 'Redirect URL'),
-        ...(this.cancelUrl && { cancelUrl: toUrl(this.cancelUrl, 'Cancel URL') }),
-      },
-      order: { ...this.order, posSignature: this.posSignature },
-      payment: { ...this.payment },
-    };
+    // A deep snapshot, so a setter called after this cannot rewrite what was sent,
+    // and exactly the bytes that go on the wire.
+    const requestData = JSON.parse(
+      JSON.stringify({
+        config: {
+          ...this.config,
+          notifyUrl: toUrl(this.notifyUrl, 'Notify URL'),
+          redirectUrl: toUrl(this.redirectUrl, 'Redirect URL'),
+          ...(this.cancelUrl && { cancelUrl: toUrl(this.cancelUrl, 'Cancel URL') }),
+        },
+        order: { ...this.order, posSignature: this.posSignature },
+        payment: this.payment,
+      })
+    );
 
     const requiredFields = [
       { field: requestData.config.language, name: 'Language' },
@@ -409,16 +426,20 @@ class Netopia {
    * @returns {{ order: Object, payment: Object }} The verified notification.
    * @throws {Error} If anything about the notification cannot be trusted.
    */
-  verifyNotification(req) {
+  verifyNotification(req, { maxAgeSeconds } = {}) {
     if (!req) {
       throw new Error('Request is required');
     }
 
+    const headers = req.headers ?? {};
+    const body = typeof req.body === 'string' || Buffer.isBuffer(req.body) ? req.body : undefined;
+
     return verifyNotification({
-      token: req.headers?.['verification-token'],
-      rawBody: req.rawBody ?? (typeof req.body === 'string' ? req.body : undefined),
+      token: headers['verification-token'] ?? headers['Verification-token'],
+      rawBody: req.rawBody ?? body,
       posSignature: this.posSignature,
       publicKey: this.publicKey,
+      maxAgeSeconds: maxAgeSeconds,
     });
   }
 

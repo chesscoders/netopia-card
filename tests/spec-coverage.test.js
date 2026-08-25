@@ -289,6 +289,8 @@ describe('startPayment', () => {
 
     // Assert
     expect(sentData(netopia).payment).not.toBe(netopia.payment);
+    // Shallow would share this object, so the sent PAN could still be rewritten.
+    expect(sentData(netopia).payment.instrument).not.toBe(netopia.payment.instrument);
     expect(sentData(netopia).payment.instrument.account).toBe('4111111111111111');
   });
 
@@ -404,10 +406,23 @@ describe('order.shipping', () => {
     );
   });
 
-  test('rejects a billing country that is not a code either', () => {
-    expect(() =>
-      stub().setOrderData({ ...ORDER, billing: { ...ORDER.billing, country: 'RO' } })
-    ).toThrow('Invalid Billing country');
+  // A form that posts an unselected <select> sends 0 or an empty string. Both used
+  // to become 642/Romania on billing while shipping threw.
+  test.each(['RO', 0, '', false, 895])('rejects billing country %s', (country) => {
+    expect(() => stub().setOrderData({ ...ORDER, billing: { ...ORDER.billing, country } })).toThrow(
+      'Invalid Billing country'
+    );
+  });
+
+  test('still defaults to Romania when the country is absent', () => {
+    const netopia = stub();
+    const billing = { ...ORDER.billing };
+    delete billing.country;
+
+    netopia.setOrderData({ ...ORDER, billing });
+
+    expect(netopia.order.billing.country).toBe(642);
+    expect(netopia.order.billing.countryName).toBe('Romania');
   });
 
   test.each([

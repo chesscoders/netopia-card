@@ -82,7 +82,7 @@ type Order = {
  */
 type Address = {
   email: string;
-  phone?: string; // Optional: NETOPIA asks for it on its own payment page when omitted.
+  phone?: string | number; // Optional: NETOPIA asks for it on its own payment page when omitted.
   firstName: string;
   lastName: string;
   city: string;
@@ -215,10 +215,10 @@ interface BrowserInfo {
  * Represents the payment data required to process a payment.
  */
 interface PaymentData {
-  account: string;
-  expMonth: number;
-  expYear: number;
-  secretCode: string;
+  account: string; // Digits only, as a string: a number loses digits.
+  expMonth: number | string;
+  expYear: number | string; // Four digits.
+  secretCode: string | number; // Three or four digits.
 }
 
 /**
@@ -250,16 +250,18 @@ interface BrowserData {
  * Represents the order data needed to create a new order.
  */
 interface OrderData {
-  amount: number;
+  amount: number | string;
   billing: {
+    // Required: setOrderData validates these three.
+    email: string;
+    firstName: string;
+    lastName: string;
     city?: string;
-    country?: number;
+    // Coerced to an ISO 3166-1 numeric code, so a form value is accepted.
+    country?: number | string;
     countryName?: string;
     details?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
+    phone?: string | number;
     postalCode?: string;
     state?: string;
   };
@@ -267,18 +269,18 @@ interface OrderData {
   dateTime?: string;
   description?: string;
   orderID: string;
-  shipping?: Partial<Address>;
+  shipping?: Omit<Partial<Address>, 'country'> & { country?: number | string };
   data?: Attributes;
-  clientID?: string;
+  clientID?: string | number;
 }
 
 /**
  * Represents the payment options for an order.
  */
-interface PaymentOptionsData {
-  installments?: number; // Number of installments; the API expects an integer.
-  bonus?: number; // Bonus points; the API expects an integer.
-}
+// One of the two is required: a call with neither throws.
+type PaymentOptionsData =
+  | { installments: number | string; bonus?: number | string }
+  | { installments?: number | string; bonus: number | string };
 
 /**
  * Represents the data needed to authorize a 3-D Secure authenticated payment.
@@ -383,7 +385,7 @@ export declare class Netopia {
    * @returns The verified notification.
    * @throws If anything about the notification cannot be trusted.
    */
-  verifyNotification(req: Request): NotifyRequest;
+  verifyNotification(req: Request, options?: { maxAgeSeconds?: number }): NotifyRequest;
 
   /**
    * Initiates a payment using the internal configuration, order, and payment information.
@@ -416,12 +418,17 @@ export function rawTextBodyParser(req: Request, res: Response, next: NextFunctio
  * Keeps the body bytes on `req.rawBody`, for `verifyNotification`. Pass it as the `verify`
  * option of a body parser: `express.json({ verify: captureRawBody })`.
  */
-export function captureRawBody(req: Request, res: Response, buffer: Buffer): void;
+export function captureRawBody(
+  req: Request,
+  res: Response,
+  buffer: Buffer,
+  encoding?: string
+): void;
 
 /**
  * Verifies a NETOPIA payment notification (IPN) and returns the notification it carries.
  *
- * NETOPIA signs every notification and sends the signature as a JWT in the
+ * NETOPIA signs its notifications and sends the signature as a JWT in the
  * `Verification-token` header: `iss` is NETOPIA, `aud` is the POS signature, and `sub` is the
  * base64 sha512 hash of the exact request body. The public key belongs to your account:
  * NETOPIA Payments admin > Profile > Security.
@@ -433,12 +440,20 @@ export function verifyNotification(params: {
   rawBody: Buffer | string;
   posSignature: string;
   publicKey: string;
+  /** Reject a token issued longer ago than this, when it carries `iat`. */
+  maxAgeSeconds?: number;
 }): NotifyRequest;
 
 /**
  * What to do with an order that is waiting for a card payment.
  */
-export type PaymentAction = 'unreadable' | 'approve' | 'reject' | 'expire' | 'pending';
+export type PaymentAction =
+  | 'unreadable'
+  | 'approve'
+  | 'chargeback'
+  | 'reject'
+  | 'expire'
+  | 'pending';
 
 /**
  * Decides what to do with an order that is waiting for a card payment, from the NETOPIA
@@ -446,7 +461,7 @@ export type PaymentAction = 'unreadable' | 'approve' | 'reject' | 'expire' | 'pe
  * about the payment and the order should be left alone.
  */
 export function resolvePaymentAction(
-  paymentStatus: number,
+  paymentStatus: number | string,
   options?: { expired?: boolean }
 ): PaymentAction;
 

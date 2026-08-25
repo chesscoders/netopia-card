@@ -8,24 +8,26 @@ function httpError(message, status) {
 /**
  * Middleware function to parse raw text body in HTTP requests.
  *
- * This middleware function will read the raw text body from the request and set
- * it as the `req.body` property if the `Content-Type` header is 'application/json',
- * 'text/plain' or not specified. NETOPIA sends payment notifications as
- * 'application/json', and the notification body must be read raw. If the
- * `Content-Type` is something else, or the body was already read, it calls the next
- * middleware function without modifying the request body.
+ * Reads the body and sets it on `req.rawBody` as a Buffer and on `req.body` as a
+ * string, when the `Content-Type` header is 'application/json', 'text/plain' or not
+ * specified. NETOPIA sends payment notifications as 'application/json', and the
+ * notification signature is over the bytes as received - which is why the Buffer is
+ * kept: decoding to a string and back is not byte-exact for anything that is not valid
+ * UTF-8. `verifyNotification` uses `req.rawBody` in preference to `req.body`.
  *
- * Keep other body parsers off this route: a JSON parser mounted earlier sets
- * `req.body` and drains the stream, leaving nothing to read here.
+ * If the `Content-Type` is something else, or the body was already read, it calls the
+ * next middleware function without touching the request body. Keep other body parsers
+ * off this route: a JSON parser mounted earlier sets `req.body` and drains the stream,
+ * leaving nothing to read here.
  *
- * Bodies larger than 1 MB are rejected with a 413: the notification endpoint is
- * reachable by anyone who learns its URL.
+ * Bodies larger than 1 MB are rejected with a 413 and the connection is dropped: the
+ * notification endpoint is reachable by anyone who learns its URL.
  *
  * @param {Request} req - The Express request object.
- * @param {Response} _res - The Express response object.
+ * @param {Response} res - The Express response object.
  * @param {NextFunction} next - The next middleware function.
  */
-function rawTextBodyParser(req, _res, next) {
+function rawTextBodyParser(req, res, next) {
   const contentType = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
   const isRaw = !contentType || RAW_CONTENT_TYPES.includes(contentType);
 
@@ -37,7 +39,7 @@ function rawTextBodyParser(req, _res, next) {
     return;
   }
 
-  let data = '';
+  const chunks = [];
   let bytes = 0;
   let done = false;
 
@@ -49,27 +51,31 @@ function rawTextBodyParser(req, _res, next) {
     next(error);
   };
 
-  // Decode across chunk boundaries: a two-byte diacritic split between two TCP
-  // segments would otherwise be replaced by U+FFFD in the parsed body.
-  req.setEncoding('utf8');
-
   req.on('data', (chunk) => {
     if (done) {
       return;
     }
-    bytes += Buffer.byteLength(chunk);
+
+    // Buffers, not decoded strings: bytes are what the cap and the signature are about.
+    bytes += chunk.length;
+
     if (bytes > MAX_BODY_BYTES) {
+      req.unpipe?.();
       req.pause();
       finish(httpError('Request body too large', 413));
+      // Let the error response go out, then stop the upload for good.
+      res.on?.('finish', () => req.destroy());
       return;
     }
-    data += chunk;
+
+    chunks.push(chunk);
   });
   req.on('end', () => {
     if (done) {
       return;
     }
-    req.body = data;
+    req.rawBody = Buffer.concat(chunks);
+    req.body = req.rawBody.toString('utf8');
     finish();
   });
   req.on('aborted', () => finish(httpError('Request aborted', 400)));

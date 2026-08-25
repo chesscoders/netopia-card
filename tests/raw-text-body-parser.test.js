@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const http = require('http');
 const net = require('net');
 const { rawTextBodyParser } = require('..');
@@ -12,7 +13,7 @@ function startServer({ tick = false, before } = {}) {
         before(req);
       }
       rawTextBodyParser(req, res, (error) => {
-        calls.push({ error, body: req.body });
+        calls.push({ error, body: req.body, rawBody: req.rawBody, req });
         res.statusCode = error ? error.status || 500 : 200;
         res.end('done');
       });
@@ -140,6 +141,45 @@ describe('rawTextBodyParser', () => {
     expect(calls[0].error.message).toBe('Request body too large');
     expect(calls[0].error.status).toBe(413);
     expect(status).toContain('413');
+  });
+
+  test('keeps the body byte-exact, even when it is not valid UTF-8', async () => {
+    // A CP1252 byte echoed back in a free-form field. Decoding to a string and
+    // re-encoding would turn it into U+FFFD and change the sha512 the notification
+    // signature is over, so a genuine notification would read as tampering.
+    const payload = Buffer.concat([
+      Buffer.from('{"order":{"data":{"note":"'),
+      Buffer.from([0xe3]),
+      Buffer.from('"}}}'),
+    ]);
+    const server = await startServer();
+    const status = await send(server.port, headersFor('application/json', payload.length), [
+      payload,
+    ]);
+    await new Promise((r) => setTimeout(r, 40));
+    server.close();
+
+    const { rawBody } = server.calls[0];
+
+    expect(status).toContain('200');
+    expect(Buffer.isBuffer(rawBody)).toBe(true);
+    expect(Buffer.compare(rawBody, payload)).toBe(0);
+    expect(crypto.createHash('sha512').update(rawBody).digest('base64')).toBe(
+      crypto.createHash('sha512').update(payload).digest('base64')
+    );
+    // The string form is lossy for these bytes, which is why rawBody exists.
+    expect(server.calls[0].body).toContain('\uFFFD');
+  });
+
+  test('drops the connection after refusing an oversized body', async () => {
+    const { calls } = await post({
+      contentType: 'text/plain',
+      body: 'x'.repeat(1024 * 1024 + 10),
+    });
+    await new Promise((r) => setTimeout(r, 60));
+
+    expect(calls[0].error.status).toBe(413);
+    expect(calls[0].req.destroyed).toBe(true);
   });
 
   test('calls next exactly once when the client disappears mid-body', async () => {

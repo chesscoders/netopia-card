@@ -18,14 +18,39 @@ describe('PaymentStatus', () => {
     expect(Math.max(...values)).toBe(23);
   });
 
-  test.each([
-    ['PAID', 3],
-    ['CONFIRMED', 5],
-    ['DECLINED', 12],
-    ['THREE_D_AUTH', 15],
-    ['EXPIRED', 23],
-  ])('%s is %i', (name, value) => {
-    expect(PaymentStatus[name]).toBe(value);
+  // The numbers are the protocol: pin every one, or a swapped pair stays green.
+  test('maps every name to the number NETOPIA sends', () => {
+    expect(PaymentStatus).toEqual({
+      NEW: 1,
+      OPENED: 2,
+      PAID: 3,
+      CANCELED: 4,
+      CONFIRMED: 5,
+      PENDING: 6,
+      SCHEDULED: 7,
+      CREDIT: 8,
+      CHARGEBACK_INIT: 9,
+      CHARGEBACK_ACCEPT: 10,
+      ERROR: 11,
+      DECLINED: 12,
+      FRAUD: 13,
+      PENDING_AUTH: 14,
+      THREE_D_AUTH: 15,
+      CHARGEBACK_REPRESENTMENT: 16,
+      REVERSED: 17,
+      PENDING_ANY: 18,
+      PROGRAMMED_RECURRENT_PAYMENT: 19,
+      CANCELED_PROGRAMMED_RECURRENT_PAYMENT: 20,
+      TRIAL_PENDING: 21,
+      TRIAL: 22,
+      EXPIRED: 23,
+    });
+  });
+
+  test('groups the right numbers', () => {
+    expect(SETTLED_PAYMENT_STATUSES).toEqual([3, 5]);
+    expect(FINAL_FAILURE_STATUSES).toEqual([4, 11, 12, 13, 17, 23]);
+    expect(CHARGEBACK_STATUSES).toEqual([9, 10, 16]);
   });
 
   test.each([
@@ -75,13 +100,28 @@ describe('resolvePaymentAction', () => {
     ['new', PaymentStatus.NEW, {}, 'pending'],
     ['pending auth past the deadline', PaymentStatus.PENDING_AUTH, { expired: true }, 'expire'],
     ['open past the deadline', PaymentStatus.OPENED, { expired: true }, 'expire'],
-    ['a chargeback', PaymentStatus.CHARGEBACK_INIT, {}, 'pending'],
+    ['a chargeback', PaymentStatus.CHARGEBACK_INIT, {}, 'chargeback'],
+    ['an accepted chargeback', PaymentStatus.CHARGEBACK_ACCEPT, {}, 'chargeback'],
+    ['a representment', PaymentStatus.CHARGEBACK_REPRESENTMENT, { expired: true }, 'chargeback'],
   ])('%s -> %s', (_name, status, options, expected) => {
     expect(resolvePaymentAction(status, options)).toBe(expected);
   });
 
   test('does not need options', () => {
     expect(resolvePaymentAction(PaymentStatus.PAID)).toBe('approve');
+  });
+
+  // A status column read back as a string used to fall through to pending.
+  test.each([
+    ['3', 'approve'],
+    ['5', 'approve'],
+    ['12', 'reject'],
+    ['9', 'chargeback'],
+    ['15', 'pending'],
+    ['', 'unreadable'],
+    ['not a status', 'unreadable'],
+  ])('reads a string status %s as %s', (status, expected) => {
+    expect(resolvePaymentAction(status)).toBe(expected);
   });
 });
 

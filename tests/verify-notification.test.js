@@ -122,9 +122,10 @@ describe('verifyNotification', () => {
     ).toThrow('Verification token signature does not match');
   });
 
-  test('uses the certificate as the verification key', () => {
-    // Signed by our key, verified against an unrelated certificate: reaching the
-    // signature check proves the certificate was parsed and used.
+  test('reads a certificate as the verification key', () => {
+    // NETOPIA hands out a certificate, not a bare key. Signed by our key and
+    // verified against an unrelated certificate: reaching the signature check
+    // proves the certificate parsed into an RSA key and was used.
     expect(() => verifyNotification({ ...notificationFor(), publicKey: CERTIFICATE })).toThrow(
       'Verification token signature does not match'
     );
@@ -141,10 +142,87 @@ describe('verifyNotification', () => {
     expect(() => verifyNotification(notificationFor(claims))).toThrow(message);
   });
 
-  test('takes the first audience of a list', () => {
-    expect(verifyNotification(notificationFor({ aud: [POS_SIGNATURE, 'OTHER'] }))).toEqual(
-      NOTIFICATION
-    );
+  // One account can hold several POS signatures, in any order.
+  test.each([[[POS_SIGNATURE, 'OTHER']], [['OTHER', POS_SIGNATURE]], [['A', 'B', POS_SIGNATURE]]])(
+    'accepts the POS signature anywhere in aud %s',
+    (aud) => {
+      expect(verifyNotification(notificationFor({ aud }))).toEqual(NOTIFICATION);
+    }
+  );
+
+  test.each([
+    ['constructor', 'Unsupported verification token algorithm'],
+    ['__proto__', 'Unsupported verification token algorithm'],
+    ['toString', 'Unsupported verification token algorithm'],
+    ['rs512', 'Unsupported verification token algorithm'],
+    ['', 'Unsupported verification token algorithm'],
+  ])('rejects alg %s without walking the prototype chain', (alg, message) => {
+    const params = notificationFor();
+    const header = Buffer.from(JSON.stringify({ alg, typ: 'JWT' })).toString('base64url');
+    const [, payload, signature] = params.token.split('.');
+
+    expect(() =>
+      verifyNotification({ ...params, token: `${header}.${payload}.${signature}` })
+    ).toThrow(message);
+  });
+
+  test('rejects a header that decodes to null', () => {
+    const params = notificationFor();
+    const [, payload, signature] = params.token.split('.');
+
+    expect(() =>
+      verifyNotification({ ...params, token: `bnVsbA.${payload}.${signature}` })
+    ).toThrow('Invalid verification token');
+  });
+
+  test('rejects a key that is not RSA', () => {
+    const ec = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+
+    expect(() =>
+      verifyNotification({
+        ...notificationFor(),
+        publicKey: ec.publicKey.export({ type: 'spki', format: 'pem' }),
+      })
+    ).toThrow('Public key must be an RSA key');
+  });
+
+  test.each([
+    ['a string', { exp: 'soon' }, 'Invalid verification token exp'],
+    ['an object', { nbf: {} }, 'Invalid verification token nbf'],
+    ['null-ish garbage', { iat: 'yesterday' }, 'Invalid verification token iat'],
+  ])(
+    'rejects %s where a timestamp belongs, instead of skipping the check',
+    (_name, claims, message) => {
+      expect(() => verifyNotification(notificationFor(claims))).toThrow(message);
+    }
+  );
+
+  test('bounds the age of a token when asked to', () => {
+    const issuedAt = Math.floor(Date.now() / 1000) - 600;
+
+    expect(() =>
+      verifyNotification({ ...notificationFor({ iat: issuedAt }), maxAgeSeconds: 300 })
+    ).toThrow('Verification token is too old');
+    expect(
+      verifyNotification({ ...notificationFor({ iat: issuedAt }), maxAgeSeconds: 900 })
+    ).toEqual(NOTIFICATION);
+  });
+
+  test.each([
+    ['not json at all', 'Notification body is not valid JSON'],
+    ['null', 'Notification body is not an object'],
+    ['[]', 'Notification body is not an object'],
+  ])('rejects a correctly signed body that is %s', (rawBody, message) => {
+    const token = sign({ iss: 'NETOPIA Payments', aud: POS_SIGNATURE, sub: hashOf(rawBody) });
+
+    expect(() =>
+      verifyNotification({
+        token,
+        rawBody,
+        posSignature: POS_SIGNATURE,
+        publicKey: PUBLIC_KEY_PEM,
+      })
+    ).toThrow(message);
   });
 
   test('rejects an unsupported algorithm', () => {
@@ -163,6 +241,9 @@ describe('verifyNotification', () => {
     ['no body', { rawBody: '' }, 'Raw body is required'],
     ['no POS signature', { posSignature: '' }, 'POS signature is required'],
     ['no public key', { publicKey: '' }, 'Public key is required'],
+    ['a malformed header', { token: 'not-base64.also-not.AAAA' }, 'Invalid verification token'],
+    ['an already parsed body', { rawBody: { payment: {} } }, 'Raw body is required'],
+    ['a broken public key', { publicKey: 'not a key' }, 'Invalid public key'],
   ])('rejects %s', (_name, overrides, message) => {
     expect(() => verifyNotification({ ...notificationFor(), ...overrides })).toThrow(message);
   });
@@ -189,9 +270,28 @@ describe('Netopia.verifyNotification', () => {
     expect(netopia().verifyNotification(req)).toEqual(NOTIFICATION);
   });
 
+  test('accepts a Buffer body', () => {
+    const { rawBody, token } = notificationFor();
+    const req = { headers: { 'verification-token': token }, body: Buffer.from(rawBody) };
+
+    expect(netopia().verifyNotification(req)).toEqual(NOTIFICATION);
+  });
+
   test('accepts the string body rawTextBodyParser leaves behind', () => {
     const { rawBody, token } = notificationFor();
     const req = { headers: { 'verification-token': token }, body: rawBody };
+
+    expect(netopia().verifyNotification(req)).toEqual(NOTIFICATION);
+  });
+
+  // Setup B in the README: express.json parses the body, captureRawBody keeps the bytes.
+  test('prefers rawBody when the body is also parsed', () => {
+    const { rawBody, token } = notificationFor();
+    const req = {
+      headers: { 'verification-token': token },
+      rawBody: Buffer.from(rawBody),
+      body: JSON.parse(rawBody),
+    };
 
     expect(netopia().verifyNotification(req)).toEqual(NOTIFICATION);
   });
