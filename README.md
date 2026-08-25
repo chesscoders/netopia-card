@@ -261,7 +261,15 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 
 **Security**: NETOPIA signs the notifications it sends, even though its OpenAPI spec does not mention it. The `Verification-token` header carries a JWT: `iss` is `NETOPIA Payments`, `aud` is the POS signature the notification is for, and `sub` is the base64 sha512 hash of the exact request body. `verifyNotification` checks all three plus the RSA signature, using the public key from NETOPIA Payments admin > Profile > Security (`NETOPIA_PUBLIC_KEY`).
 
-Without that check the endpoint is open: anyone who learns your `notifyUrl` can post a paid notification to it. With it, still treat the notification as a trigger rather than the whole truth - check that `order.orderID` belongs to an order you created and that the amount matches what you charged, and make the handler idempotent so a replay changes nothing - a replayed notification is a valid notification, and NETOPIA retries. `netopia.verifyNotification(req, { maxAgeSeconds: 900 })` additionally rejects a token older than that, for tokens that carry `iat`. Mind the units when comparing: the spec documents the notification amount as "amount in decimal units, i.e. 1234 = 12.34", while the start response mirrors the amount you sent.
+Without that check the endpoint is open: anyone who learns your `notifyUrl` can post a paid notification to it. With it, still treat the notification as a trigger rather than the whole truth - check that `order.orderID` belongs to an order you created and that the amount matches what you charged, and make the handler idempotent so a replay changes nothing - a replayed notification is a valid notification, and NETOPIA retries. `netopia.verifyNotification(req, { maxAgeSeconds: 900 })` additionally rejects a token older than that, for tokens that carry `iat`.
+
+On the amount: the card notification mirrors the amount you sent, in the same units. A 100 RON order comes back as `"amount":100` - verified on sandbox. The spec describes the notification amount as "amount in decimal units, i.e. 1234 = 12.34", which is not what the card flow does, so do not scale by 100; compare in minor units on both sides to keep floating point out of it:
+
+```javascript
+const sameAmount = Math.round(payment.amount * 100) === Math.round(order.total * 100);
+```
+
+If you integrate another payment method later, assert the units once in your own logs before trusting them.
 
 The hash is over the bytes as received, so the body has to reach `verifyNotification` unparsed. Pick one of two setups - `verifyNotification` accepts either.
 
@@ -326,7 +334,7 @@ switch (resolvePaymentAction(payment.status, { expired: isPastDeadline(order) })
   case 'chargeback': // 9, 10, 16 - settled, then taken back
     return escalate(order.orderID);
   case 'reject': // 4 canceled, 11 error, 12 declined, 13 fraud, 17 reversed, 23 expired
-    return release(order.orderID);
+    return recordFailedAttempt(order.orderID, payment.code); // see the note below
   case 'expire':
     return close(order.orderID);
   case 'unreadable': // NETOPIA sent no status: nothing is known, leave the order alone
@@ -339,6 +347,8 @@ if (payment.status === PaymentStatus.THREE_D_AUTH) {
   // the customer is still on the 3-D Secure page
 }
 ```
+
+`reject` means the attempt failed, not that the order is dead. On the hosted page the customer can try another card, and NETOPIA sends a notification per attempt with the same `orderID` and the same `ntpID`. Observed on sandbox, inside 93 seconds on one order: codes 19, 20, 21, 22 and 34 (statuses 12 and 11), then code `00` with status 3. Releasing the order on the first decline would have cancelled an order that was about to be paid. Record the failed attempt, show the customer the message, and close the order on your own deadline or on `PaymentStatus.EXPIRED`.
 
 A status read back from storage as a string is accepted, since `payment.status` often makes a round trip through a database column.
 

@@ -37,7 +37,13 @@ const PaymentStatus = Object.freeze({
 const SETTLED_PAYMENT_STATUSES = Object.freeze([PaymentStatus.PAID, PaymentStatus.CONFIRMED]);
 
 /**
- * Final failures: this order will not be paid, so it can be released or closed.
+ * Failed attempts: this attempt will not be paid.
+ *
+ * Not the same as a dead order. On the NETOPIA-hosted page the customer can try
+ * another card, and every attempt sends its own notification with the same orderID
+ * and ntpID - observed on sandbox: five declines (11, 12) and then status 3, inside
+ * 93 seconds. Record the failed attempt, keep the order open, and close it on your
+ * own deadline or on EXPIRED.
  *
  * FRAUD is here as the conservative choice - NETOPIA's SDK describes 13 as "payment in
  * reviewing", so a merchant who prefers to hold such an order rather than reject it

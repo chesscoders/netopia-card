@@ -13,7 +13,9 @@ const {
  *   this payment, so leave the order alone.
  * - `approve`: the money is in.
  * - `chargeback`: the money was taken back after it settled. Needs a human.
- * - `reject`: a final failure; this order will not be paid.
+ * - `reject`: this attempt failed. On the hosted page the customer can try another
+ *   card, so keep the order open and wait for the next notification unless your own
+ *   deadline passed.
  * - `expire`: still open, but it ran out of time on your side.
  * - `pending`: still open, keep waiting.
  *
