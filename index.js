@@ -486,6 +486,44 @@ class Netopia {
       throw error;
     }
   }
+
+  /**
+   * Returns money from a paid card payment, in full or in part: `/operation/credit`.
+   * Approved is `error.code` '00' with `payment.status` 8 (CREDIT) and `payment.amount` the
+   * amount this call returned. Observed on sandbox: an unpaid payment answers '99', and an
+   * amount above what is left to refund is an HTTP 400 with no reason, which throws.
+   *
+   * @param {{ ntpID: string, amount: number|string }} refundData The NETOPIA ID of the payment
+   *   and the amount to return, in the payment currency.
+   * @returns {Promise<Object>} The NETOPIA response.
+   */
+  async refund(refundData) {
+    if (!refundData) {
+      throw new Error('Refund data is required');
+    }
+
+    validateField(refundData.ntpID, 'NETOPIA ID');
+    validateField(refundData.amount, 'Amount');
+
+    const { ntpID } = refundData;
+    // Spec: a string of 5 to 64 characters.
+    if (typeof ntpID !== 'string' || ntpID.length < 5 || ntpID.length > 64) {
+      throw new Error('Invalid NETOPIA ID');
+    }
+
+    // Required and above zero: the spec does not say what an omitted amount refunds.
+    const amount = toNumber(refundData.amount, 'Amount');
+    if (amount <= 0) {
+      throw new Error('Invalid Amount');
+    }
+
+    try {
+      return await this.sendRequest(`${this.baseUrl}/operation/credit`, 'POST', { ntpID, amount });
+    } catch (error) {
+      console.error('Error refunding payment:', error.message);
+      throw error;
+    }
+  }
 }
 
 // Listed one by one, not spread: a spread is invisible to cjs-module-lexer, so

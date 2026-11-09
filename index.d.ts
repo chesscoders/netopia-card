@@ -403,6 +403,15 @@ export declare class Netopia {
    * @returns A promise that resolves with the details of the authorized payment.
    */
   verifyAuth(authData: VerifyAuthData): Promise<any>;
+
+  /**
+   * Returns money from a paid card payment, in full or in part (`/operation/credit`).
+   * Approved is `error.code` '00' with `payment.status` 8 (CREDIT); an unpaid payment
+   * answers '99', and an amount above what is left to refund rejects with `status` 400.
+   * @param refundData The ntpID of the paid payment and the amount to return, above 0.
+   * @returns A promise that resolves with the NETOPIA response.
+   */
+  refund(refundData: { ntpID: string; amount: number | string }): Promise<any>;
 }
 
 /**
