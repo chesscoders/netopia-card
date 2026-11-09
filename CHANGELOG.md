@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file. Releases before 2.2.0 are only
 recorded in the [commit history](https://github.com/chesscoders/netopia-card/commits/master).
 
-## [Unreleased]
+## [3.1.0] - 2026-11-09
 
 ### Added
 
