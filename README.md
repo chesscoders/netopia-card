@@ -24,12 +24,13 @@ yarn add netopia-card
 - Payment status and error code constants, so nothing branches on a bare number
 - 3-D Secure continuation through `verifyAuth`
 - Installments and bonus points through `setPaymentOptions`
+- Full and partial refunds through `refund`
 
 ## Note
 
-This library covers the card payment flow: `/payment/card/start` and `/payment/card/verify-auth`. Installments, bonus points, shipping addresses and custom order data are supported.
+This library covers the card payment flow: `/payment/card/start`, `/payment/card/verify-auth` and refunds through `/operation/credit`. Installments, bonus points, shipping addresses and custom order data are supported.
 
-Not covered, because NETOPIA has not shipped it: **split payments**. The spec marks `payment.options.split` as "will be available in future versions" and `PaymentSplitDestination` as a "Future feature", so `setPaymentOptions` drops the field rather than sending something the gateway ignores - the whole amount would settle into the primary POS with no error. Also not covered: BNPL, Apple Pay, card-present terminals, the `/operation/*` calls (capture, void, credit, refund, expire) and order status, which the API documents as "will be available at a future date".
+Not covered, because NETOPIA has not shipped it: **split payments**. The spec marks `payment.options.split` as "will be available in future versions" and `PaymentSplitDestination` as a "Future feature", so `setPaymentOptions` drops the field rather than sending something the gateway ignores - the whole amount would settle into the primary POS with no error. Also not covered: BNPL, Apple Pay, card-present terminals, the other `/operation/*` calls (capture, void, fail, expire) and order status, which the API documents as "will be available at a future date".
 
 ## Configuration
 
@@ -367,6 +368,34 @@ const response = await netopia.verifyAuth({
   formData: req.body,
 });
 ```
+
+### Refunds
+
+`refund` returns money from a paid payment through `/operation/credit`, in full or in part. It needs the `ntpID` of the payment (`payment.ntpID` from the start response or the notification) and the amount to return, above 0, in the payment currency. Use the API key of the account that took the payment.
+
+```javascript
+// throws on an HTTP error, such as an amount above what is left to refund
+const { error, payment } = await netopia.refund({ ntpID: '1309088', amount: 49.5 });
+
+if (isPaymentError(error.code)) {
+  throw new Error(error.message); // nothing was returned: alert a human
+}
+// payment.status is 8 (PaymentStatus.CREDIT), payment.amount what this call returned
+```
+
+What the sandbox answers, observed on a 5 RON payment:
+
+| Call                                                    | Answer                                                                                             |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1 RON, then 4 RON                                       | `'00'` "Approved" each time, `payment.status` 8, `payment.amount` 1 and 4. Partial refunds add up. |
+| On an unpaid payment                                    | `'99'` "Invalid payment status", HTTP 200.                                                         |
+| More than what is left, or anything after a full refund | HTTP 400 "general error", no reason given: `refund` throws with `status` 400.                      |
+
+There is no idempotency key: a refund retried after a timeout can return the money twice, so do not retry one automatically - check the transaction in NETOPIA admin first. The amount is required, since the spec does not say what an omitted one refunds.
+
+The spec still labels `/operation/credit` "will be available at a future date", and only the sandbox has been checked, so try one refund on production before relying on it. A notification for a refund would carry `PaymentStatus.CREDIT` (8), which `resolvePaymentAction` reads as `pending`.
+
+NETOPIA emails the customer a receipt for the payment but nothing for a refund - neither a partial nor a full one, observed on sandbox - so tell the customer yourself.
 
 ## Migration Guide from v2 to v3
 

@@ -3,6 +3,27 @@
 All notable changes to this project are documented in this file. Releases before 2.2.0 are only
 recorded in the [commit history](https://github.com/chesscoders/netopia-card/commits/master).
 
+## [Unreleased]
+
+### Added
+
+- `netopia.refund({ ntpID, amount })` returns money from a paid card payment, in full or in part,
+  through `/operation/credit`. `ntpID` must be a string of 5 to 64 characters and `amount` a
+  number above 0 - a string amount is sent as a number - as the spec's `OperationRequest`
+  declares; anything else throws before a request is made. The amount is required, since the
+  spec does not say what an omitted one refunds, and `split` is not sent, as with payments. The
+  spec still labels the endpoint "will be available at a future date", but the sandbox refunds:
+  on a 5 RON payment, 1 RON and then 4 RON were each approved with `'00'` and `payment.status`
+  8; an unpaid payment answers `'99'`; an amount above what is left is an HTTP 400 with no
+  reason, which throws. Production has not been checked.
+
+### Security
+
+- `axios` is required at `^1.20.0`, up from `^1.8.4`, so an install can no longer resolve a
+  release open to the 2026 axios advisories, among them GHSA-r4gj-5m52-g5wh (redirect-based
+  SSRF) and GHSA-m8m8-qj5v-23w3 (request socket hijack). 1.20.0 is the first release that fixes
+  them all.
+
 ## [3.0.1] - 2026-08-25
 
 ### Fixed
